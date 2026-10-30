@@ -1,0 +1,38 @@
+name: APK bauen
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+      - name: APK bauen
+        run: ./gradlew --no-daemon assembleRelease
+      - name: APK umbenennen
+        run: cp app/build/outputs/apk/release/app-release.apk NC-Kreis.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NC-Kreis-apk
+          path: NC-Kreis.apk
+      - name: Als Release „neueste“ veröffentlichen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete neueste --yes --cleanup-tag || true
+          gh release create neueste NC-Kreis.apk \
+            --title "NC Kreis – neueste Version (Build ${{ github.run_number }})" \
+            --notes "Automatisch gebaut aus ${{ github.sha }}. Auf dem Handy herunterladen und installieren."
