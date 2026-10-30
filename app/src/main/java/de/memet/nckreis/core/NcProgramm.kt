@@ -81,15 +81,21 @@ class NcProgramm(val zeilen: List<String>) {
     /** Sucht Kreis–Gerade–Kreis. Bevorzugt Muster mit fehlerhaftem Kreis. */
     fun findeMuster(): Muster? {
         val kandidaten = mutableListOf<Muster>()
+        val scharf = mutableListOf<Muster>()
         for (j in 0 until fahrsaetze.size - 2) {
             val a = fahrsaetze[j]; val l = fahrsaetze[j + 1]; val b = fahrsaetze[j + 2]
-            if (!a.istKreis || l.art != Art.G01 || !b.istKreis) continue
+            if (l.art != Art.G01 || !b.istKreis) continue
             if (a.start == null || a.ende == null || l.ende == null || b.ende == null) continue
             val zStart = (j - 1 downTo 0).map { fahrsaetze[it] }
                 .firstOrNull { woerter(zeilen[it.zeile]).any { w -> w.adresse == "Z" } }?.zeile
-            kandidaten.add(Muster(a, l, b, zStart))
+            if (a.istKreis) kandidaten.add(Muster(a, l, b, zStart))
+            else if (a.art == Art.G01 && abs(a.start.r - a.ende.r) < 0.0005 && abs(a.start.z - a.ende.z) > 0.0005 &&
+                abs(l.ende.r - a.ende.r) > 0.0005 && abs(l.ende.z - a.ende.z) > 0.0005
+            ) scharf.add(Muster(a, l, b, zStart)) // Zylinder – scharfe Ecke – Schräge – Kreis
         }
-        return kandidaten.firstOrNull { it.kreis1.fehlerhaft || it.kreis2.fehlerhaft } ?: kandidaten.firstOrNull()
+        return kandidaten.firstOrNull { it.kreis1.fehlerhaft || it.kreis2.fehlerhaft }
+            ?: scharf.firstOrNull { it.kreis2.fehlerhaft }
+            ?: kandidaten.firstOrNull() ?: scharf.firstOrNull()
     }
 
     /** Zeichnungswerte aus dem (evtl. fehlerhaften) Code ableiten – als Vorschlag für den Dialog. */
@@ -111,7 +117,7 @@ class NcProgramm(val zeilen: List<String>) {
             zEcke = Fmt.rund(zEcke),
             zPlan = Fmt.rund(m.kreis2.ende.z),
             winkel = w,
-            radiusZylinder = Fmt.rund(hypot(m.kreis1.i, m.kreis1.k)),
+            radiusZylinder = if (m.kreis1.istKreis) Fmt.rund(hypot(m.kreis1.i, m.kreis1.k)) else 0.0,
             radiusPlan = Fmt.rund(hypot(m.kreis2.i, m.kreis2.k)),
         )
     }
@@ -129,12 +135,55 @@ class NcProgramm(val zeilen: List<String>) {
             val t = setzeGKreis(neu[zeile], g)
             if (t != neu[zeile]) { neu[zeile] = t; geaendert.add(zeile) }
         }
-        m.zStartZeile?.let { setze(it, "Z" to e.start.z) }
-        setzeG(m.kreis1.zeile, e.gKreis)
-        setze(m.kreis1.zeile, "X" to e.ende1.x, "Z" to e.ende1.z, "I" to e.i1, "K" to e.k1)
-        setze(m.gerade.zeile, "X" to e.start2.x, "Z" to e.start2.z)
-        setzeG(m.kreis2.zeile, e.gKreis)
-        setze(m.kreis2.zeile, "X" to e.ende2.x, "Z" to e.ende2.z, "I" to e.i2, "K" to e.k2)
+        fun entferne(zeile: Int, vararg adressen: String) {
+            var t = neu[zeile]
+            for (a in adressen) t = entferneWort(t, a)
+            if (t != neu[zeile]) { neu[zeile] = t; geaendert.add(zeile) }
+        }
+        val k1 = m.kreis1.zeile
+        var einfuegen: String? = null
+        when {
+            // Code hat Kreis, Zeichnung auch
+            m.kreis1.istKreis && !e.ohneKreis1 -> {
+                m.zStartZeile?.let { setze(it, "Z" to e.start.z) }
+                setzeG(k1, e.gKreis)
+                setze(k1, "X" to e.ende1.x, "Z" to e.ende1.z, "I" to e.i1, "K" to e.k1)
+            }
+            // Code hat Kreis, Zeichnung scharfe Ecke (R34 = 0) → Gerade bis zur Ecke
+            m.kreis1.istKreis -> {
+                setzeG(k1, "G01")
+                setze(k1, "X" to e.ecke1.x, "Z" to e.ecke1.z)
+                entferne(k1, "I", "K")
+            }
+            // Code scharf, Zeichnung scharf
+            e.ohneKreis1 -> setze(k1, "X" to e.ecke1.x, "Z" to e.ecke1.z)
+            // Code scharf, Zeichnung mit Radius → bis Tangentenpunkt fahren, Kreis einfügen
+            else -> {
+                setze(k1, "X" to e.start.x, "Z" to e.start.z)
+                einfuegen = "${e.gKreis} X${Fmt.zahl(e.ende1.x)} Z${Fmt.zahl(e.ende1.z)} I${Fmt.zahl(e.i1)} K${Fmt.zahl(e.k1)}"
+            }
+        }
+        val g = m.gerade.zeile
+        if (woerter(neu[g]).none { it.adresse == "G" && it.zahl?.toInt() == 1 }) {
+            val t = setzeWort(neu[g], "G", "01", vorne = true)
+            if (t != neu[g]) { neu[g] = t; geaendert.add(g) }
+        }
+        setze(g, "X" to e.start2.x, "Z" to e.start2.z)
+        val k2 = m.kreis2.zeile
+        if (e.ohneKreis2) {
+            setzeG(k2, "G01")
+            setze(k2, "X" to e.ecke2.x, "Z" to e.ecke2.z)
+            entferne(k2, "I", "K")
+        } else {
+            setzeG(k2, e.gKreis)
+            setze(k2, "X" to e.ende2.x, "Z" to e.ende2.z, "I" to e.i2, "K" to e.k2)
+        }
+        einfuegen?.let { zeile ->
+            neu.add(k1 + 1, zeile)
+            val verschoben = geaendert.map { if (it > k1) it + 1 else it }.toMutableSet()
+            verschoben.add(k1 + 1)
+            return neu.joinToString("\n") to verschoben
+        }
         return neu.joinToString("\n") to geaendert
     }
 
@@ -182,13 +231,30 @@ class NcProgramm(val zeilen: List<String>) {
         }
 
         /** Ersetzt oder ergänzt ein Adresswort (X, Z, I, K). */
-        fun setzeWort(zeile: String, adresse: String, wert: String): String {
+        fun setzeWort(zeile: String, adresse: String, wert: String, vorne: Boolean = false): String {
             val w = woerter(zeile).firstOrNull { it.adresse == adresse }
-            if (w != null) return zeile.substring(0, w.von) + adresse + wert + zeile.substring(w.bis)
+            if (w != null && !vorne) return zeile.substring(0, w.von) + adresse + wert + zeile.substring(w.bis)
+            if (vorne) {
+                // vor das erste Achswort setzen (hinter N-Nummer)
+                val erstes = woerter(zeile).firstOrNull { it.adresse in listOf("X", "Z", "I", "K", "F") }
+                val pos = erstes?.von ?: zeile.length
+                return zeile.substring(0, pos) + adresse + wert + (if (pos < zeile.length) " " else "") + zeile.substring(pos)
+            }
             // anhängen hinter dem letzten Achswort, sonst vor dem Kommentar
-            val achsen = woerter(zeile).filter { it.adresse in listOf("X", "Z", "I", "K") }
+            // Reihenfolge X Z I K einhalten
+            val reihe = listOf("X", "Z", "I", "K")
+            val achsen = woerter(zeile).filter { it.adresse in reihe }
+            val danach = achsen.firstOrNull { reihe.indexOf(it.adresse) > reihe.indexOf(adresse) }
+            if (danach != null) return zeile.substring(0, danach.von) + adresse + wert + " " + zeile.substring(danach.von)
             val pos = achsen.maxOfOrNull { it.bis } ?: zeile.indexOf(';').let { if (it < 0) zeile.trimEnd().length else it }
             return zeile.substring(0, pos) + " " + adresse + wert + zeile.substring(pos)
+        }
+
+        fun entferneWort(zeile: String, adresse: String): String {
+            val w = woerter(zeile).firstOrNull { it.adresse == adresse } ?: return zeile
+            var von = w.von
+            while (von > 0 && zeile[von - 1] == ' ') von--
+            return zeile.substring(0, von) + zeile.substring(w.bis)
         }
 
         fun setzeGKreis(zeile: String, g: String): String {
@@ -214,12 +280,15 @@ class NcProgramm(val zeilen: List<String>) {
         fun ncBlock(e: KantenErgebnis): String {
             val g = e.gKreis
             fun f(v: Double) = Fmt.zahl(v)
-            return listOf(
-                "G01 X${f(e.eingabe.durchmesser)} Z${f(e.start.z)}",
-                "$g X${f(e.ende1.x)} Z${f(e.ende1.z)} I${f(e.i1)} K${f(e.k1)}",
-                "G01 X${f(e.start2.x)} Z${f(e.start2.z)}",
-                "$g X${f(e.ende2.x)} Z${f(e.ende2.z)} I${f(e.i2)} K${f(e.k2)}",
-            ).joinToString("\n")
+            val zeilen = mutableListOf<String>()
+            if (e.ohneKreis1) zeilen.add("G01 X${f(e.eingabe.durchmesser)} Z${f(e.ecke1.z)}")
+            else {
+                zeilen.add("G01 X${f(e.eingabe.durchmesser)} Z${f(e.start.z)}")
+                zeilen.add("$g X${f(e.ende1.x)} Z${f(e.ende1.z)} I${f(e.i1)} K${f(e.k1)}")
+            }
+            zeilen.add("G01 X${f(e.start2.x)} Z${f(e.start2.z)}")
+            if (!e.ohneKreis2) zeilen.add("$g X${f(e.ende2.x)} Z${f(e.ende2.z)} I${f(e.i2)} K${f(e.k2)}")
+            return zeilen.joinToString("\n")
         }
 
         fun l170Aufruf(e: KantenEingabe, anhalten: Boolean = true): String {

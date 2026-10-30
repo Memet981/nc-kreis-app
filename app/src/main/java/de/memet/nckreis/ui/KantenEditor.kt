@@ -50,8 +50,8 @@ private val FELDER = listOf(
     Feld("R31", "Z scharfe Ecke", "Z, wo Zylinder und Schräge ohne Radius zusammentreffen (aus der Zeichnung)."),
     Feld("R32", "Z Planfläche", "Z der Planfläche am Ende der Schräge."),
     Feld("R33", "Winkel Schräge in °", "Winkel der Schräge zur Z-Achse (zum Zylinder), zwischen 0 und 90."),
-    Feld("R34", "Radius Ecke Zylinder", "Radius an der Ecke Zylinder → Schräge."),
-    Feld("R35", "Radius Ecke Planfläche", "Radius an der Ecke Schräge → Planfläche."),
+    Feld("R34", "Radius Ecke Zylinder", "Radius an der Ecke Zylinder → Schräge. 0 = scharfe Ecke."),
+    Feld("R35", "Radius Ecke Planfläche", "Radius an der Ecke Schräge → Planfläche. 0 = scharfe Ecke."),
 )
 
 private val BEISPIEL = KantenEingabe(87.98, -4.0, 0.0, 10.0, 2.0, 1.0)
@@ -149,7 +149,10 @@ fun KantenEditor(
                 val block = NcProgramm.ncBlock(erg)
                 val aufruf = NcProgramm.l170Aufruf(erg.eingabe)
                 CodeKarte("NC-Sätze mit festen Werten", block) { clipboard.setText(AnnotatedString(block)) }
-                CodeKarte("Oder an der Maschine mit L170", aufruf) { clipboard.setText(AnnotatedString(aufruf)) }
+                if (erg.ohneKreis1 || erg.ohneKreis2)
+                    Text("Hinweis: L170 rechnet nur mit Radien größer 0. Für eine scharfe Ecke die Sätze mit festen Werten nehmen.",
+                        style = MaterialTheme.typography.bodySmall)
+                else CodeKarte("Oder an der Maschine mit L170", aufruf) { clipboard.setText(AnnotatedString(aufruf)) }
                 Button(onClick = { onUebernehmen(erg) }, modifier = Modifier.fillMaxWidth()) { Text(uebernehmenText) }
             }
         }
@@ -212,13 +215,13 @@ fun CodeKarte(titel: String, code: String, onKopieren: () -> Unit) {
 fun bahnVon(e: KantenErgebnis): List<GSeg> {
     val cw = e.eingabe.seite > 0
     val s = e.eingabe.seite
-    val anfahrt = P(e.start.z - s * 2 * (e.ende1.z - e.start.z).let { kotlin.math.abs(it) + 0.5 }, e.start.r)
+    val anfahrt = P(e.start.z - s * (2 * kotlin.math.abs(e.ende1.z - e.start.z) + 1.0), e.start.r)
     val unten = P(e.ende2.z, e.ende2.r - 1.0)
-    return listOf(
+    return listOfNotNull(
         GSeg(anfahrt, e.start),
-        GSeg(e.start, e.ende1, e.mitte1, cw),
+        if (e.ohneKreis1) null else GSeg(e.start, e.ende1, e.mitte1, cw),
         GSeg(e.ende1, e.start2),
-        GSeg(e.start2, e.ende2, e.mitte2, cw),
+        if (e.ohneKreis2) null else GSeg(e.start2, e.ende2, e.mitte2, cw),
         GSeg(e.ende2, unten),
     )
 }
@@ -245,8 +248,8 @@ private fun hervorhebung(i: Int, e: KantenEingabe, erg: KantenErgebnis?): GHervo
         1 -> GHervor(punkt = z[1], text = "Z scharfe Ecke")
         2 -> GHervor(linien = listOf(z[2] to z[3]), text = "Z Planfläche")
         3 -> GHervor(linien = listOf(z[1] to z[2]), text = "Winkel der Schräge")
-        4 -> GHervor(bogen = erg?.let { GSeg(it.start, it.ende1, it.mitte1, e.seite > 0) }, punkt = if (erg == null) z[1] else null, text = "Radius Ecke Zylinder")
-        5 -> GHervor(bogen = erg?.let { GSeg(it.start2, it.ende2, it.mitte2, e.seite > 0) }, punkt = if (erg == null) z[2] else null, text = "Radius Ecke Planfläche")
+        4 -> GHervor(bogen = erg?.takeIf { !it.ohneKreis1 }?.let { GSeg(it.start, it.ende1, it.mitte1, e.seite > 0) }, punkt = if (erg == null || erg.ohneKreis1) z[1] else null, text = "Radius Ecke Zylinder")
+        5 -> GHervor(bogen = erg?.takeIf { !it.ohneKreis2 }?.let { GSeg(it.start2, it.ende2, it.mitte2, e.seite > 0) }, punkt = if (erg == null || erg.ohneKreis2) z[2] else null, text = "Radius Ecke Planfläche")
         else -> null
     }
 }

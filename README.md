@@ -32,3 +32,8 @@ Maß gemeint ist. Ergebnis als R55…R65, als fertige NC-Sätze und als L170-Auf
 
 ## Selbst bauen
 Android Studio öffnen oder `./gradlew assembleRelease`.
+
+## Scharfe Ecke
+R34 = 0 oder R35 = 0 bedeutet: an dieser Ecke kein Radius. Der Kreissatz entfällt, gefahren wird
+mit G01 direkt bis zur Ecke. Steht im Code eine scharfe Ecke und die Zeichnung hat einen Radius,
+fügt „Berechnen“ den fehlenden Kreissatz ein. L170 an der Maschine rechnet nur mit Radien > 0.

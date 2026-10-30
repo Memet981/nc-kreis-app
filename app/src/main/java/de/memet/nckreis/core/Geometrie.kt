@@ -45,6 +45,10 @@ data class KantenErgebnis(
     val ecke2: P,          // scharfe Ecke Schräge/Planfläche
 ) {
     val gKreis: String get() = if (eingabe.seite > 0) "G02" else "G03"
+    /** R34 = 0: scharfe Ecke Zylinder/Schräge, kein erster Kreis. */
+    val ohneKreis1: Boolean get() = eingabe.radiusZylinder == 0.0
+    /** R35 = 0: scharfe Ecke Schräge/Planfläche, kein zweiter Kreis. */
+    val ohneKreis2: Boolean get() = eingabe.radiusPlan == 0.0
 
     fun rParameter(): List<Pair<String, Double>> = listOf(
         "R55" to start.z, "R56" to ende1.x, "R57" to ende1.z, "R58" to i1, "R59" to k1,
@@ -59,7 +63,7 @@ object Kante {
     fun berechne(e: KantenEingabe): KantenErgebnis {
         if (e.durchmesser <= 0) throw GeometrieFehler("Ø muss größer als 0 sein.")
         if (e.winkel <= 0 || e.winkel >= 90) throw GeometrieFehler("Winkel muss zwischen 0 und 90° liegen.")
-        if (e.radiusZylinder <= 0 || e.radiusPlan <= 0) throw GeometrieFehler("Beide Radien müssen größer als 0 sein.")
+        if (e.radiusZylinder < 0 || e.radiusPlan < 0) throw GeometrieFehler("Radien dürfen nicht negativ sein (0 = scharfe Ecke).")
         val s = e.seite.toDouble()
         val a = Math.toRadians(e.winkel)
         val ca = cos(a); val sa = sin(a); val ta = tan(a)
