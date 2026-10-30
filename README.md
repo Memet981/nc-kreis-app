@@ -9,7 +9,7 @@ Alle Versionen sind mit demselben Schlüssel signiert und lassen sich direkt üb
 
 ## Tab „Code“
 1. NC-Code holen:
-   - **Foto** – Bildschirm der Steuerung fotografieren, Texterkennung läuft auf dem Handy (offline).
+   - **Foto** – Bildschirm der Steuerung fotografieren, Texterkennung über die Google Play-Dienste (wie Lens; beim allerersten Mal wird sie kurz geladen).
    - **Bild** – vorhandenes Foto auswählen.
    - **Google Lens** – in Lens Text markieren → *Teilen* → **NC Kreis**, oder *Kopieren* → hier **Einfügen**.
      Ein geteiltes Bild wird ebenfalls direkt gelesen.

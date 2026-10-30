@@ -99,7 +99,11 @@ private fun App(geteilt: Intent?, geteiltErledigt: () -> Unit) {
                 code = NcProgramm.ocrBereinigen(it)
                 tab = 0
                 meldung = "Text erkannt. Bitte mit dem Foto vergleichen – besonders Minuszeichen und Punkte."
-            }.onFailure { meldung = "Texterkennung fehlgeschlagen: ${it.message}" }
+            }.onFailure {
+                meldung = if (it.message?.contains("download", ignoreCase = true) == true)
+                    "Die Texterkennung wird gerade von den Google Play-Diensten geladen. Kurz warten (Internet nötig) und nochmal versuchen."
+                else "Texterkennung fehlgeschlagen: ${it.message}"
+            }
         }
     }
 

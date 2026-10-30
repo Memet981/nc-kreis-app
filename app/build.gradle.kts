@@ -52,7 +52,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.core:core-ktx:1.15.0")
-    implementation("com.google.mlkit:text-recognition:16.0.1")
+    // Texterkennung aus den Google Play-Diensten (schon auf dem Handy, wie Lens)
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
     testImplementation("junit:junit:4.13.2")
 }
