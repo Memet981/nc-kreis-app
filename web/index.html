@@ -403,6 +403,14 @@ const R_REF = /([XZIKF])\s*(-?)R(\d+)/y;
 const EINFACH = new RegExp(String.raw`([A-Z])\s*(${NUM})`, "y");
 const istBuchstabe = c => /\p{L}/u.test(c);
 
+/** Griechische und kyrillische Großbuchstaben, die die Texterkennung statt lateinischer liefert. */
+const GLEICHE_BUCHSTABEN = {
+  "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O",
+  "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+  "А": "A", "В": "B", "Е": "E", "І": "I", "К": "K", "М": "M", "Н": "H", "О": "O", "Р": "P", "С": "C",
+  "Т": "T", "У": "Y", "Х": "X",
+};
+
 /** Wie Kotlin Regex.matchAt: nur genau an Position p. */
 function passtBei(re, s, p) { re.lastIndex = p; return re.exec(s); }
 
@@ -646,22 +654,34 @@ class NcProgramm {
   static ocrBereinigen(text) {
     return text.split(/\r\n|\n|\r/).map(z => {
       let t = NcProgramm.gross(z).replaceAll("—", "-").replaceAll("–", "-").replaceAll("−", "-");
+      // Griechische/kyrillische Buchstaben, die wie lateinische aussehen: "Κ0.7" (Kappa) -> "K0.7"
+      t = t.replace(/[Ͱ-ӿ]/g, c => GLEICHE_BUCHSTABEN[c] ?? c);
       // 87,98 -> 87.98
       t = t.replace(/(\d),(\d)/g, "$1.$2");
-      // O als 0 innerhalb von Zahlen nach Adressbuchstaben
       // "X 87.98" -> "X87.98", "X- 4" -> "X-4"
       t = t.replace(/\b([XZIKNGL])\s+(-?)\s*([\dO.])/g, "$1$2$3");
-      t = t.replace(/(?<=[XZIKFGNR=\-][\d.]{0,10})O(?=[\d.\s]|$)/g, "0");
+      // O als 0 in Zahlen nach Adressbuchstaben: "GOO" -> "G00", "KO.7" -> "K0.7" (GOTO bleibt)
+      t = t.replace(/\b([XZIKFGNMSR]\d*=?-?)([\dO.]*O[\dO.]*)(?![A-Z])/g, (_, a, zahl) => a + zahl.replaceAll("O", "0"));
       // 9L9 / 9|9 -> 919
       t = t.replace(/(?<=\d)[L|](?=\d)/g, "1");
       t = t.replace(/-\s+(\d)/g, "-$1");
       t = t.replace(/\s{2,}/g, " ").trim();
-      // I als 1, l oder | gelesen: "G03 X36.75 Z-9. 10. K0.7" -> "G03 X36.75 Z-9. I0. K0.7"
-      // Nur im Kreissatz ohne I, und nicht am Zeilenanfang (dort steht eher eine Satznummer ohne N).
+
+      // Ab hier wird geraten, welcher Buchstabe als Ziffer gelesen wurde: nur bei einer Zahl ohne
+      // Buchstabe, außerhalb von Kommentaren, nicht am Zeilenanfang (dort steht eher eine Satznummer
+      // ohne N) und nicht nach "=" oder "*".
+      const los = String.raw`(?<![=*]\s*)(?<=\s)`;
+      const zahl = String.raw`(-?(?:\d+\.?\d*|\.\d+))(?=\s|$)`;
+      const imCode = f => { t = t.replace(/\([^)]*\)?|;.*$|[^(;]+/g, s => /^[(;]/.test(s) ? s : f(s)); };
+      // G als 6 gelesen: "664" -> "G64", "603" -> "G03"
+      imCode(s => s.replace(new RegExp(los + String.raw`6([\dO]{2})(?=\s|$)`, "g"), (_, g) => "G" + g.replaceAll("O", "0")));
+      // Z als 2 gelesen, wenn im Satz kein Z steht: "X35.35 20.3" -> "X35.35 Z0.3"
+      if (!NcProgramm.woerter(t).some(x => x.adresse === "Z")) imCode(s => s.replace(new RegExp(los + "2" + zahl), "Z$1"));
+      // I als 1, l oder | gelesen, im Kreissatz ohne I: "G03 X36.75 Z-9. 10. K0.7" -> "G03 X36.75 Z-9. I0. K0.7"
       const w = NcProgramm.woerter(t);
       if (!w.some(x => x.adresse === "I") &&
         w.some(x => x.adresse === "K" || (x.adresse === "G" && [2, 3].includes(Math.trunc(x.zahl))))) {
-        t = t.replace(/(?<=\s)[1L|](-?(?:\d+\.?\d*|\.\d+))(?=\s|$)/, "I$1");
+        imCode(s => s.replace(new RegExp(los + "[1L|]" + zahl), "I$1"));
       }
       return t;
     }).join("\n").trim();

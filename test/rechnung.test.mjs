@@ -117,6 +117,37 @@ test("I als 1, l oder | gelesen", () => {
   assert.equal(p.kreise[0].i, -0.7);
 });
 
+test("Lesefehler aus Lens-Foto vom 31.10.", () => {
+  const ocr = NcProgramm.ocrBereinigen;
+  // K als griechisches Kappa, G als 6
+  assert.equal(ocr("N180 G03 664 X36.75 Z-9. I0. Κ0.7"), "N180 G03 G64 X36.75 Z-9. I0. K0.7");
+  assert.equal(ocr("N180 G03 664 X36.75 Z-9. I0. К0.7"), "N180 G03 G64 X36.75 Z-9. I0. K0.7"); // kyrillisch
+  assert.equal(ocr("N140 G01 G64 608 X41.15 Z-13.2"), "N140 G01 G64 G08 X41.15 Z-13.2");
+  // O statt 0 im G-Wort
+  assert.equal(ocr("N210 GOO G05 X50."), "N210 G00 G05 X50.");
+  assert.equal(ocr("N80 GO1 X5O"), "N80 G01 X50");
+  // Z als 2
+  assert.equal(ocr("N200 G01 G64 G08 X35.35 20.3"), "N200 G01 G64 G08 X35.35 Z0.3");
+  // Nicht anfassen: Kommentare, Werte nach "=" oder "*", GOTO, Satz mit Z
+  assert.equal(ocr("N90 (ANWAHL 2 SCHEIBENKANTE)"), "N90 (ANWAHL 2 SCHEIBENKANTE)");
+  assert.equal(ocr("N110 G00 F * 1 = 2.5 X43"), "N110 G00 F * 1 = 2.5 X43");
+  assert.equal(ocr("GOTOF MARKE"), "GOTOF MARKE");
+  assert.equal(ocr("N120 G01 X42.8 Z-5 20"), "N120 G01 X42.8 Z-5 20");
+
+  const code = ocr([
+    "N170 G01 G05 X38.15 Z-9.7",
+    "N180 G03 664 X36.75 Z-9. I0. Κ0.7",
+    "N190 G01 G05 Z-0.4",
+    "N200 G01 G64 G08 X35.35 20.3",
+    "N210 GOO G05 X50.",
+  ].join("\n"));
+  const p = new NcProgramm(zeilen(code));
+  assert.equal(p.kreise.length, 1);
+  assert.ok(!p.kreise[0].fehlerhaft);
+  assert.equal(p.fahrsaetze[3].ende.z, 0.3);
+  assert.equal(p.fahrsaetze[4].art, "G00");
+});
+
 test("R-Parameter und L170-Aufruf", () => {
   const ein = new KantenEingabe(87.98, -4.0, 0.0, 10.0, 2.0, 1.0);
   const aufruf = NcProgramm.l170Aufruf(ein);
