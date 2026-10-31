@@ -1,0 +1,1368 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NC Kreis</title>
+<meta name="description" content="Kreisendpunkte an Kanten (Zylinder – Radius – Schräge – Radius – Planfläche), passend zum Zyklus L170.">
+<meta name="theme-color" content="#1F3A5F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NC Kreis">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f4f6f9;
+  --flaeche: #ffffff;
+  --flaeche2: #e9edf2;
+  --text: #1b1f24;
+  --text2: #5a6370;
+  --rand: #cfd6df;
+  --primaer: #1f5fa8;
+  --primaer-text: #ffffff;
+  --chip: #d6e4f5;
+  --akzent: #ff8f00;
+  --fehler: #d32f2f;
+  --fehler-flaeche: #fbe4e4;
+  --ok: #2e7d32;
+  --ok-flaeche: #e3f1e4;
+  --leiste: #1f3a5f;
+  --leiste-text: #ffffff;
+  --toast-bg: #2b3138;
+  --toast-text: #ffffff;
+  --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1317;
+    --flaeche: #181e25;
+    --flaeche2: #212932;
+    --text: #e5e8ec;
+    --text2: #9aa4b0;
+    --rand: #343e4a;
+    --primaer: #8ab4f8;
+    --primaer-text: #0b1a2e;
+    --chip: #2a3d57;
+    --fehler: #ff7b72;
+    --fehler-flaeche: #3b1d1f;
+    --ok: #6cc070;
+    --ok-flaeche: #1b2e1e;
+    --leiste: #16283f;
+    --toast-bg: #e5e8ec;
+    --toast-text: #0f1317;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+body:has(dialog[open]) { overflow: hidden; }
+.leiste {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--leiste); color: var(--leiste-text);
+  padding: calc(env(safe-area-inset-top) + 14px) 16px 14px;
+}
+.leiste h1 { margin: 0 auto; max-width: 640px; font-size: 19px; font-weight: 600; }
+main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); }
+.stapel { display: flex; flex-direction: column; gap: 10px; }
+h2.abschnitt { font-size: 17px; font-weight: 600; margin: 10px 0 0; }
+p { margin: 0; }
+.reihe { display: flex; gap: 8px; }
+.reihe > * { flex: 1 1 0; min-width: 0; }
+.knopf {
+  appearance: none; min-height: 44px; padding: 0 14px; border-radius: 22px;
+  border: 1px solid var(--rand); background: transparent; color: var(--primaer);
+  font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.knopf.voll { background: var(--primaer); color: var(--primaer-text); border-color: transparent; }
+.knopf:disabled { opacity: .4; cursor: default; }
+.knopf:active:not(:disabled), .chip:active, .pm:active { filter: brightness(.9); }
+.text-knopf {
+  appearance: none; background: none; border: 0; color: var(--primaer);
+  font: inherit; font-size: 15px; font-weight: 600; padding: 8px 10px; min-height: 40px;
+  border-radius: 20px; cursor: pointer; align-self: flex-start;
+}
+.karte { background: var(--flaeche); border: 1px solid var(--rand); border-radius: 12px; padding: 12px; }
+.karte.ok { background: var(--ok-flaeche); border-color: transparent; }
+.karte.fehler { background: var(--fehler-flaeche); border-color: transparent; }
+.karte.grau { background: var(--flaeche2); border-color: transparent; }
+.karte-kopf { display: flex; align-items: center; gap: 8px; }
+.karte-kopf h3 { flex: 1; margin: 0; font-size: 15px; font-weight: 600; }
+.karte-kopf .text-knopf { align-self: center; margin: -8px -6px -8px 0; }
+.mono { font-family: var(--mono); }
+.klein { font-size: 13px; color: var(--text2); }
+.fehlertext { color: var(--fehler); }
+.ok-text { color: var(--ok); font-weight: 600; }
+.fehler-text-fett { color: var(--fehler); font-weight: 600; }
+pre.code { margin: 6px 0 0; font-family: var(--mono); font-size: 15px; white-space: pre-wrap; word-break: break-word; }
+.feld { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text2); }
+textarea, input.zahl {
+  font-family: var(--mono); color: var(--text); background: var(--flaeche);
+  border: 1px solid var(--rand); border-radius: 10px; outline: none;
+}
+textarea:focus, input.zahl:focus { border-color: var(--primaer); box-shadow: 0 0 0 1px var(--primaer); }
+textarea { width: 100%; min-height: 200px; padding: 10px 12px; font-size: 16px; line-height: 1.5; resize: vertical; }
+.zahl-reihe { display: flex; gap: 6px; }
+input.zahl { flex: 1; min-width: 0; height: 50px; padding: 0 12px; font-size: 18px; }
+input.zahl.ungueltig { border-color: var(--fehler); box-shadow: 0 0 0 1px var(--fehler); }
+.pm {
+  flex: none; width: 50px; height: 50px; border-radius: 10px; border: 1px solid var(--rand);
+  background: var(--flaeche2); color: var(--text); font: inherit; font-size: 20px; cursor: pointer;
+}
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--rand);
+  background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--chip); border-color: transparent; }
+.chip[aria-pressed="true"]::before { content: "✓ "; }
+.schritt-titel { font-size: 22px; font-weight: 600; margin: 0; }
+.grafik {
+  position: relative; height: 260px; border-radius: 12px; overflow: hidden;
+  background: var(--flaeche2); touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.grafik canvas { display: block; width: 100%; height: 100%; }
+.grafik .hervor-text { position: absolute; top: 8px; left: 10px; color: var(--akzent); font-size: 14px; font-weight: 600; pointer-events: none; }
+.grafik .tipp { position: absolute; right: 8px; bottom: 5px; font-size: 11px; color: var(--text2); opacity: .8; pointer-events: none; }
+.rgitter { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; font-family: var(--mono); font-size: 15px; }
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: flex; justify-content: center;
+  background: var(--flaeche); border-top: 1px solid var(--rand);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabs button {
+  flex: 1; max-width: 320px; appearance: none; background: none; border: 0; cursor: pointer;
+  padding: 8px 0 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  color: var(--text2); font: inherit; font-size: 12px; font-weight: 600;
+}
+.tabs .pille { width: 56px; height: 30px; border-radius: 15px; display: grid; place-items: center; }
+.tabs svg { width: 22px; height: 22px; fill: currentColor; }
+.tabs button[aria-selected="true"] { color: var(--text); }
+.tabs button[aria-selected="true"] .pille { background: var(--chip); }
+dialog.vollbild {
+  position: fixed; inset: 0; width: 100%; max-width: none; height: 100%; max-height: none;
+  margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--text);
+}
+dialog.vollbild[open] { display: flex; flex-direction: column; }
+dialog::backdrop { background: rgba(0, 0, 0, .4); }
+.dlg-leiste {
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 8px) 8px 8px 16px;
+  background: var(--leiste); color: var(--leiste-text);
+}
+.dlg-leiste h2 { flex: 1; margin: 0; font-size: 18px; font-weight: 600; }
+.dlg-leiste .text-knopf { color: var(--leiste-text); align-self: center; }
+.dlg-inhalt { flex: 1; overflow-y: auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
+.dlg-inhalt > * { max-width: 640px; margin-left: auto; margin-right: auto; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--toast-bg); color: var(--toast-text); padding: 10px 16px; border-radius: 8px;
+  font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20;
+  max-width: calc(100% - 32px);
+}
+.toast.sichtbar { opacity: 1; }
+</style>
+</head>
+<body>
+<header class="leiste"><h1 id="titel">NC Kreis – Code</h1></header>
+
+<main>
+  <section id="tab-code" class="stapel">
+    <p id="anleitung" class="klein">Code holen: Google Lens öffnen (am iPhone die Kamera) → Bildschirm der Steuerung
+      fotografieren → Text markieren → <b>Kopieren</b> → hier <b>Einfügen</b>.</p>
+    <div class="reihe">
+      <button class="knopf voll" id="einfuegen" type="button">Einfügen</button>
+      <button class="knopf" id="bereinigen" type="button">Bereinigen</button>
+      <button class="knopf" id="leeren" type="button">Leeren</button>
+    </div>
+    <div id="meldung" class="klein" hidden></div>
+    <label class="feld">NC-Code (Lesefehler hier korrigieren)
+      <textarea id="code" spellcheck="false" autocapitalize="characters" autocomplete="off" autocorrect="off"
+        wrap="off" placeholder="Hier den NC-Code einfügen …"></textarea>
+    </label>
+    <button class="knopf voll" id="berechnen" type="button">Berechnen</button>
+    <p id="hinweis" class="fehlertext" hidden></p>
+    <div id="geaendert" class="karte ok" hidden></div>
+    <div id="code-grafik-bereich" class="stapel" hidden>
+      <h2 class="abschnitt">Grafik</h2>
+    </div>
+    <div id="kreise-bereich" class="stapel" hidden>
+      <h2 class="abschnitt">Kreisprüfung</h2>
+      <div id="kreise" class="stapel"></div>
+    </div>
+    <div id="programm-hinweise" class="stapel"></div>
+  </section>
+
+  <section id="tab-assistent" hidden></section>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button type="button" role="tab" data-tab="code" aria-selected="true">
+    <span class="pille"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span>
+    Code
+  </button>
+  <button type="button" role="tab" data-tab="assistent" aria-selected="false">
+    <span class="pille"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg></span>
+    Assistent
+  </button>
+</nav>
+
+<dialog id="dialog-kante" class="vollbild">
+  <div class="dlg-leiste">
+    <h2>Kante aus Zeichnung</h2>
+    <button class="text-knopf" id="dialog-abbrechen" type="button">Abbrechen</button>
+  </div>
+  <div class="dlg-inhalt" id="dialog-inhalt"></div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<noscript><p style="padding:16px">Bitte JavaScript einschalten.</p></noscript>
+
+<!-- Rechnung: 1:1 aus core/Geometrie.kt und core/NcProgramm.kt der Android-App. Wird von test/rechnung.test.mjs geprüft. -->
+<script id="rechnung">
+"use strict";
+
+/** Wie Java Math.round: NaN → 0, x.5 rundet nach oben. */
+function jRound(v) { return Number.isNaN(v) ? 0 : Math.round(v); }
+const zuRad = g => g * (Math.PI / 180);
+const zuGrad = r => r * (180 / Math.PI);
+
+/** Punkt in der Drehteil-Ebene: z = Längsachse, r = Radius (X/2). */
+class P {
+  constructor(z, r) { this.z = z; this.r = r; }
+  get x() { return 2 * this.r; }
+}
+
+/**
+ * Eingaben wie Zyklus L170.
+ * R30 Ø Zylinder, R31 Z scharfe Ecke, R32 Z Planfläche, R33 Winkel der Schräge (zur Z-Achse),
+ * R34 Radius an der Ecke Zylinder/Schräge, R35 Radius an der Ecke Schräge/Planfläche.
+ * Die Seite (R36) ergibt sich aus R31/R32: Planfläche bei größerem Z = +1, sonst -1.
+ */
+class KantenEingabe {
+  constructor(durchmesser, zEcke, zPlan, winkel, radiusZylinder, radiusPlan) {
+    this.durchmesser = durchmesser;
+    this.zEcke = zEcke;
+    this.zPlan = zPlan;
+    this.winkel = winkel;
+    this.radiusZylinder = radiusZylinder;
+    this.radiusPlan = radiusPlan;
+  }
+  get seite() { return this.zPlan >= this.zEcke ? 1 : -1; }
+  kopie(aenderung) {
+    return Object.assign(new KantenEingabe(this.durchmesser, this.zEcke, this.zPlan, this.winkel,
+      this.radiusZylinder, this.radiusPlan), aenderung);
+  }
+}
+
+/** Ergebnis in derselben Belegung wie L170 (R55…R65). */
+class KantenErgebnis {
+  constructor(eingabe, start, ende1, mitte1, i1, k1, start2, ende2, mitte2, i2, k2, ecke1, ecke2) {
+    this.eingabe = eingabe;
+    this.start = start;     // R55: Tangentenpunkt auf dem Zylinder (Z), X = R30
+    this.ende1 = ende1;     // R56/R57
+    this.mitte1 = mitte1;
+    this.i1 = i1; this.k1 = k1; // R58/R59
+    this.start2 = start2;   // R60/R61
+    this.ende2 = ende2;     // R62/R63
+    this.mitte2 = mitte2;
+    this.i2 = i2; this.k2 = k2; // R64/R65
+    this.ecke1 = ecke1;     // scharfe Ecke Zylinder/Schräge
+    this.ecke2 = ecke2;     // scharfe Ecke Schräge/Planfläche
+  }
+  get gKreis() { return this.eingabe.seite > 0 ? "G02" : "G03"; }
+  /** R34 = 0: scharfe Ecke Zylinder/Schräge, kein erster Kreis. */
+  get ohneKreis1() { return this.eingabe.radiusZylinder === 0; }
+  /** R35 = 0: scharfe Ecke Schräge/Planfläche, kein zweiter Kreis. */
+  get ohneKreis2() { return this.eingabe.radiusPlan === 0; }
+
+  rParameter() {
+    return [
+      ["R55", this.start.z], ["R56", this.ende1.x], ["R57", this.ende1.z], ["R58", this.i1], ["R59", this.k1],
+      ["R60", this.start2.x], ["R61", this.start2.z], ["R62", this.ende2.x], ["R63", this.ende2.z],
+      ["R64", this.i2], ["R65", this.k2],
+    ];
+  }
+}
+
+class GeometrieFehler extends Error {
+  constructor(msg) { super(msg); this.name = "GeometrieFehler"; }
+}
+
+const Kante = {
+  berechne(e) {
+    if (e.durchmesser <= 0) throw new GeometrieFehler("Ø muss größer als 0 sein.");
+    if (e.winkel <= 0 || e.winkel >= 90) throw new GeometrieFehler("Winkel muss zwischen 0 und 90° liegen.");
+    if (e.radiusZylinder < 0 || e.radiusPlan < 0) throw new GeometrieFehler("Radien dürfen nicht negativ sein (0 = scharfe Ecke).");
+    const s = e.seite;
+    const a = zuRad(e.winkel);
+    const ca = Math.cos(a), sa = Math.sin(a), ta = Math.tan(a);
+    const r0 = e.durchmesser / 2;
+    const laengeZ = Math.abs(e.zPlan - e.zEcke);
+    if (laengeZ <= 0) throw new GeometrieFehler("Z Ecke und Z Planfläche dürfen nicht gleich sein.");
+    const rB = r0 - laengeZ * ta;
+    if (rB <= 0) throw new GeometrieFehler("Die Schräge läuft unter die Drehmitte – Winkel oder Z prüfen.");
+
+    const t1 = e.radiusZylinder * Math.tan(a / 2);
+    const t2 = e.radiusPlan * Math.tan((Math.PI / 2 - a) / 2);
+    const schraege = laengeZ / ca;
+    if (t1 + t2 > schraege + 1e-9)
+      throw new GeometrieFehler(`Schräge zu kurz für beide Radien (Länge ${schraege.toFixed(3)}, gebraucht ${(t1 + t2).toFixed(3)}).`);
+    if (t2 > rB) throw new GeometrieFehler("Radius an der Planfläche zu groß.");
+
+    const ecke1 = new P(e.zEcke, r0);
+    const ecke2 = new P(e.zPlan, rB);
+    const p0 = new P(e.zEcke - s * t1, r0);
+    const p1 = new P(e.zEcke + s * t1 * ca, r0 - t1 * sa);
+    const m1 = new P(p0.z, r0 - e.radiusZylinder);
+    const p2 = new P(e.zPlan - s * t2 * ca, rB + t2 * sa);
+    const p3 = new P(e.zPlan, rB - t2);
+    const m2 = new P(e.zPlan - s * e.radiusPlan, rB - t2);
+    return new KantenErgebnis(
+      e, p0, p1, m1, m1.r - p0.r, m1.z - p0.z,
+      p2, p3, m2, m2.r - p2.r, m2.z - p2.z, ecke1, ecke2,
+    );
+  },
+
+  /** Gerundete Werte so prüfen, wie die Steuerung sie sieht (3 Nachkommastellen). */
+  radiusAbweichungGerundet(erg) {
+    const r3 = v => Fmt.rund(v);
+    const dr = (s, e, i, k) => {
+      const sz = r3(s.z), sr = r3(s.x) / 2;
+      const ez = r3(e.z), er = r3(e.x) / 2;
+      const cz = sz + r3(k), cr = sr + r3(i);
+      return Math.abs(Math.hypot(sz - cz, sr - cr) - Math.hypot(ez - cz, er - cr));
+    };
+    return [dr(erg.start, erg.ende1, erg.i1, erg.k1), dr(erg.start2, erg.ende2, erg.i2, erg.k2)];
+  },
+
+  /** Winkel aus zwei Punkten einer Schräge (zur Z-Achse, in Grad). */
+  winkelAus(a, b) { return zuGrad(Math.atan(Math.abs(b.r - a.r) / Math.abs(b.z - a.z))); },
+};
+
+const Fmt = {
+  rund(v) { return jRound(v * 1000) / 1000; },
+
+  /** 87.9190 -> "87.919", -2.000 -> "-2", -0.0 -> "0" */
+  zahl(v) {
+    let s = Fmt.rund(v).toFixed(3);
+    s = s.replace(/0+$/, "").replace(/\.+$/, "");
+    if (s === "-0" || s === "") s = "0";
+    return s;
+  },
+};
+
+/** Ein Wort im Satz, z.B. X87.98, F=2.4, Z R55. Position bezieht sich auf die Originalzeile. */
+class Wort {
+  constructor(adresse, text, zahl, rRef, von, bis) {
+    this.adresse = adresse; this.text = text; this.zahl = zahl; this.rRef = rRef; this.von = von; this.bis = bis;
+  }
+}
+
+const Art = { G00: "G00", G01: "G01", G02: "G02", G03: "G03" };
+
+/** Ein Fahrsatz mit bekannten (oder unbekannten) Positionen. */
+class Fahrsatz {
+  constructor(zeile, art, start, ende, i = 0, k = 0) {
+    this.zeile = zeile; this.art = art; this.start = start; this.ende = ende; this.i = i; this.k = k;
+  }
+  get istKreis() { return this.art === Art.G02 || this.art === Art.G03; }
+  get mitte() { return this.istKreis && this.start != null ? new P(this.start.z + this.k, this.start.r + this.i) : null; }
+  /** Radius Start→Mitte und Ende→Mitte */
+  get radien() {
+    const m = this.mitte, e = this.ende, s = this.start;
+    if (m == null || e == null || s == null) return null;
+    return [Math.hypot(s.z - m.z, s.r - m.r), Math.hypot(e.z - m.z, e.r - m.r)];
+  }
+  get deltaR() { const r = this.radien; return r == null ? null : Math.abs(r[0] - r[1]); }
+  get fehlerhaft() { return (this.deltaR ?? 0) > NcProgramm.TOLERANZ; }
+}
+
+/** Erkannte Kante: Kreis – Gerade – Kreis, wie in Satz N140…N160. */
+class Muster {
+  constructor(kreis1, gerade, kreis2, zStartZeile) {
+    this.kreis1 = kreis1; this.gerade = gerade; this.kreis2 = kreis2; this.zStartZeile = zStartZeile;
+  }
+}
+
+const NUM = String.raw`-?(?:\d+\.?\d*|\.\d+)`;
+const MIT_GLEICH = new RegExp(String.raw`([A-Z]{1,3})(\d*)\s*=\s*(${NUM}|-?R\d+)`, "y");
+const R_REF = /([XZIKF])\s*(-?)R(\d+)/y;
+const EINFACH = new RegExp(String.raw`([A-Z])\s*(${NUM})`, "y");
+const istBuchstabe = c => /\p{L}/u.test(c);
+
+/** Wie Kotlin Regex.matchAt: nur genau an Position p. */
+function passtBei(re, s, p) { re.lastIndex = p; return re.exec(s); }
+
+class NcProgramm {
+  static TOLERANZ = 0.001;
+
+  constructor(zeilen) {
+    this.zeilen = zeilen;
+    this.hinweise = [];
+    this.rWerte = new Map();
+    const liste = [];
+    let modal = Art.G00;
+    let z = null, r = null;
+    let inkremental = false;
+    zeilen.forEach((zeile, idx) => {
+      const woerter = NcProgramm.woerter(zeile);
+      // R-Zuweisungen zuerst (R30=87.98)
+      woerter.filter(w => /^R\d+$/.test(w.adresse) && w.text.includes("=") && w.zahl != null)
+        .forEach(w => this.rWerte.set(parseInt(w.adresse.substring(1), 10), w.zahl));
+      let neueArt = null;
+      woerter.filter(w => w.adresse === "G").forEach(w => {
+        switch (w.zahl == null ? null : Math.trunc(w.zahl)) {
+          case 0: neueArt = Art.G00; break;
+          case 1: neueArt = Art.G01; break;
+          case 2: neueArt = Art.G02; break;
+          case 3: neueArt = Art.G03; break;
+          case 90: inkremental = false; break;
+          case 91: inkremental = true; break;
+        }
+      });
+      if (neueArt != null) modal = neueArt;
+      const xw = woerter.find(w => w.adresse === "X");
+      const zw = woerter.find(w => w.adresse === "Z");
+      if (xw == null && zw == null) return;
+      if (inkremental) this.hinweise.push(`Zeile ${idx + 1}: G91 (inkremental) wird nicht ausgewertet.`);
+      const start = z != null && r != null ? new P(z, r) : null;
+      if (xw != null) { const v = this.wert(xw); r = v == null ? null : v / 2; }
+      if (zw != null) z = this.wert(zw);
+      const ende = z != null && r != null ? new P(z, r) : null;
+      const iw = woerter.find(w => w.adresse === "I");
+      const kw = woerter.find(w => w.adresse === "K");
+      const i = (iw != null ? this.wert(iw) : null) ?? 0;
+      const k = (kw != null ? this.wert(kw) : null) ?? 0;
+      liste.push(new Fahrsatz(idx, modal, start, ende, i, k));
+    });
+    this.fahrsaetze = liste;
+  }
+
+  wert(w) { return w.zahl ?? (w.rRef != null ? (this.rWerte.get(w.rRef) ?? null) : null); }
+
+  get kreise() { return this.fahrsaetze.filter(f => f.istKreis); }
+
+  /** Sucht Kreis–Gerade–Kreis. Bevorzugt Muster mit fehlerhaftem Kreis. */
+  findeMuster() {
+    const kandidaten = [];
+    const scharf = [];
+    const fs = this.fahrsaetze;
+    for (let j = 0; j < fs.length - 2; j++) {
+      const a = fs[j], l = fs[j + 1], b = fs[j + 2];
+      if (l.art !== Art.G01 || !b.istKreis) continue;
+      if (a.start == null || a.ende == null || l.ende == null || b.ende == null) continue;
+      let zStart = null;
+      for (let q = j - 1; q >= 0; q--) {
+        if (NcProgramm.woerter(this.zeilen[fs[q].zeile]).some(w => w.adresse === "Z")) { zStart = fs[q].zeile; break; }
+      }
+      if (a.istKreis) kandidaten.push(new Muster(a, l, b, zStart));
+      else if (a.art === Art.G01 && Math.abs(a.start.r - a.ende.r) < 0.0005 && Math.abs(a.start.z - a.ende.z) > 0.0005 &&
+        Math.abs(l.ende.r - a.ende.r) > 0.0005 && Math.abs(l.ende.z - a.ende.z) > 0.0005
+      ) scharf.push(new Muster(a, l, b, zStart)); // Zylinder – scharfe Ecke – Schräge – Kreis
+    }
+    return kandidaten.find(m => m.kreis1.fehlerhaft || m.kreis2.fehlerhaft)
+      ?? scharf.find(m => m.kreis2.fehlerhaft)
+      ?? kandidaten[0] ?? scharf[0] ?? null;
+  }
+
+  /** Zeichnungswerte aus dem (evtl. fehlerhaften) Code ableiten – als Vorschlag für den Dialog. */
+  eingabeAus(m) {
+    const s0 = m.kreis1.start;
+    const r0 = s0.r;
+    const lA = m.kreis1.ende, lE = m.gerade.ende;
+    const winkel = Kante.winkelAus(lA, lE);
+    const seite = m.kreis2.ende.z >= s0.z ? 1 : -1;
+    // Zeichnungswerte sind meist rund: Winkel auf 0.5°, Ecke auf 0.1 mm einrasten, wenn nah dran
+    const wGerastet = jRound(winkel * 2) / 2;
+    const w = Math.abs(wGerastet - winkel) < 0.2 ? wGerastet : jRound(winkel * 100) / 100;
+    const ta = Math.tan(zuRad(w));
+    const zRoh = lE.z + seite * (lE.r - r0) / ta;
+    const zGerastet = jRound(zRoh * 10) / 10;
+    const zEcke = Math.abs(zGerastet - zRoh) < 0.03 ? zGerastet : zRoh;
+    return new KantenEingabe(
+      Fmt.rund(2 * r0),
+      Fmt.rund(zEcke),
+      Fmt.rund(m.kreis2.ende.z),
+      w,
+      m.kreis1.istKreis ? Fmt.rund(Math.hypot(m.kreis1.i, m.kreis1.k)) : 0,
+      Fmt.rund(Math.hypot(m.kreis2.i, m.kreis2.k)),
+    );
+  }
+
+  /** Neuer Programmtext mit korrigierten Werten. Liefert [Text, Set der geänderten Zeilennummern]. */
+  ersetze(m, e) {
+    const neu = [...this.zeilen];
+    const geaendert = new Set();
+    const setze = (zeile, ...werte) => {
+      let t = neu[zeile];
+      for (const [a, v] of werte) t = NcProgramm.setzeWort(t, a, Fmt.zahl(v));
+      if (t !== neu[zeile]) { neu[zeile] = t; geaendert.add(zeile); }
+    };
+    const setzeG = (zeile, g) => {
+      const t = NcProgramm.setzeGKreis(neu[zeile], g);
+      if (t !== neu[zeile]) { neu[zeile] = t; geaendert.add(zeile); }
+    };
+    const entferne = (zeile, ...adressen) => {
+      let t = neu[zeile];
+      for (const a of adressen) t = NcProgramm.entferneWort(t, a);
+      if (t !== neu[zeile]) { neu[zeile] = t; geaendert.add(zeile); }
+    };
+    const k1 = m.kreis1.zeile;
+    let einfuegen = null;
+    if (m.kreis1.istKreis && !e.ohneKreis1) {
+      // Code hat Kreis, Zeichnung auch
+      if (m.zStartZeile != null) setze(m.zStartZeile, ["Z", e.start.z]);
+      setzeG(k1, e.gKreis);
+      setze(k1, ["X", e.ende1.x], ["Z", e.ende1.z], ["I", e.i1], ["K", e.k1]);
+    } else if (m.kreis1.istKreis) {
+      // Code hat Kreis, Zeichnung scharfe Ecke (R34 = 0) → Gerade bis zur Ecke
+      setzeG(k1, "G01");
+      setze(k1, ["X", e.ecke1.x], ["Z", e.ecke1.z]);
+      entferne(k1, "I", "K");
+    } else if (e.ohneKreis1) {
+      // Code scharf, Zeichnung scharf
+      setze(k1, ["X", e.ecke1.x], ["Z", e.ecke1.z]);
+    } else {
+      // Code scharf, Zeichnung mit Radius → bis Tangentenpunkt fahren, Kreis einfügen
+      setze(k1, ["X", e.start.x], ["Z", e.start.z]);
+      einfuegen = `${e.gKreis} X${Fmt.zahl(e.ende1.x)} Z${Fmt.zahl(e.ende1.z)} I${Fmt.zahl(e.i1)} K${Fmt.zahl(e.k1)}`;
+    }
+    const g = m.gerade.zeile;
+    if (!NcProgramm.woerter(neu[g]).some(w => w.adresse === "G" && w.zahl != null && Math.trunc(w.zahl) === 1)) {
+      const t = NcProgramm.setzeWort(neu[g], "G", "01", true);
+      if (t !== neu[g]) { neu[g] = t; geaendert.add(g); }
+    }
+    setze(g, ["X", e.start2.x], ["Z", e.start2.z]);
+    const k2 = m.kreis2.zeile;
+    if (e.ohneKreis2) {
+      setzeG(k2, "G01");
+      setze(k2, ["X", e.ecke2.x], ["Z", e.ecke2.z]);
+      entferne(k2, "I", "K");
+    } else {
+      setzeG(k2, e.gKreis);
+      setze(k2, ["X", e.ende2.x], ["Z", e.ende2.z], ["I", e.i2], ["K", e.k2]);
+    }
+    if (einfuegen != null) {
+      neu.splice(k1 + 1, 0, einfuegen);
+      const verschoben = new Set([...geaendert].map(z => z > k1 ? z + 1 : z));
+      verschoben.add(k1 + 1);
+      return [neu.join("\n"), verschoben];
+    }
+    return [neu.join("\n"), geaendert];
+  }
+
+  /** Großbuchstaben Zeichen für Zeichen, damit die Positionen gleich bleiben (ß bleibt ß). */
+  static gross(s) {
+    let t = "";
+    for (let i = 0; i < s.length; i++) {
+      const u = s[i].toUpperCase();
+      t += u.length === 1 ? u : s[i];
+    }
+    return t;
+  }
+
+  /** Kommentar ab ';' oder in Klammern wird ignoriert. */
+  static woerter(zeile) {
+    const u = NcProgramm.gross(zeile);
+    const semi = u.indexOf(";");
+    const ende = semi < 0 ? u.length : semi;
+    const ergebnis = [];
+    let p = 0;
+    while (p < ende) {
+      const c = u[p];
+      if (c === "(") { const zu = u.indexOf(")", p); p = zu < 0 ? ende : zu + 1; continue; }
+      if (!istBuchstabe(c) || (p > 0 && istBuchstabe(u[p - 1]))) { p++; continue; }
+      const m1 = passtBei(MIT_GLEICH, u, p);
+      if (m1 != null && p + m1[0].length - 1 < ende) {
+        const v = m1[3];
+        const ref = /^(-?)R(\d+)$/.exec(v);
+        ergebnis.push(new Wort(m1[1] + m1[2], m1[0], ref == null ? Number(v) : null,
+          ref != null ? parseInt(ref[2], 10) : null, p, p + m1[0].length));
+        p += m1[0].length; continue;
+      }
+      const m2 = passtBei(R_REF, u, p);
+      if (m2 != null && p + m2[0].length - 1 < ende) {
+        ergebnis.push(new Wort(m2[1], m2[0], null, parseInt(m2[3], 10), p, p + m2[0].length));
+        p += m2[0].length; continue;
+      }
+      const m3 = passtBei(EINFACH, u, p);
+      if (m3 != null && p + m3[0].length - 1 < ende) {
+        ergebnis.push(new Wort(m3[1], m3[0], Number(m3[2]), null, p, p + m3[0].length));
+        p += m3[0].length; continue;
+      }
+      p++;
+    }
+    return ergebnis;
+  }
+
+  /** Ersetzt oder ergänzt ein Adresswort (X, Z, I, K). */
+  static setzeWort(zeile, adresse, wert, vorne = false) {
+    const w = NcProgramm.woerter(zeile).find(x => x.adresse === adresse);
+    if (w != null && !vorne) return zeile.substring(0, w.von) + adresse + wert + zeile.substring(w.bis);
+    if (vorne) {
+      // vor das erste Achswort setzen (hinter N-Nummer)
+      const erstes = NcProgramm.woerter(zeile).find(x => ["X", "Z", "I", "K", "F"].includes(x.adresse));
+      const pos = erstes != null ? erstes.von : zeile.length;
+      return zeile.substring(0, pos) + adresse + wert + (pos < zeile.length ? " " : "") + zeile.substring(pos);
+    }
+    // anhängen hinter dem letzten Achswort, sonst vor dem Kommentar
+    // Reihenfolge X Z I K einhalten
+    const reihe = ["X", "Z", "I", "K"];
+    const achsen = NcProgramm.woerter(zeile).filter(x => reihe.includes(x.adresse));
+    const danach = achsen.find(x => reihe.indexOf(x.adresse) > reihe.indexOf(adresse));
+    if (danach != null) return zeile.substring(0, danach.von) + adresse + wert + " " + zeile.substring(danach.von);
+    const semi = zeile.indexOf(";");
+    const pos = achsen.length > 0 ? Math.max(...achsen.map(x => x.bis)) : (semi < 0 ? zeile.trimEnd().length : semi);
+    return zeile.substring(0, pos) + " " + adresse + wert + zeile.substring(pos);
+  }
+
+  static entferneWort(zeile, adresse) {
+    const w = NcProgramm.woerter(zeile).find(x => x.adresse === adresse);
+    if (w == null) return zeile;
+    let von = w.von;
+    while (von > 0 && zeile[von - 1] === " ") von--;
+    return zeile.substring(0, von) + zeile.substring(w.bis);
+  }
+
+  static setzeGKreis(zeile, g) {
+    const w = NcProgramm.woerter(zeile).find(x => x.adresse === "G" && x.zahl != null && [2, 3].includes(Math.trunc(x.zahl)));
+    return w != null ? zeile.substring(0, w.von) + g + zeile.substring(w.bis) : zeile;
+  }
+
+  /** Typische Lesefehler der Texterkennung bereinigen. */
+  static ocrBereinigen(text) {
+    return text.split(/\r\n|\n|\r/).map(z => {
+      let t = NcProgramm.gross(z).replaceAll("—", "-").replaceAll("–", "-").replaceAll("−", "-");
+      // 87,98 -> 87.98
+      t = t.replace(/(\d),(\d)/g, "$1.$2");
+      // O als 0 innerhalb von Zahlen nach Adressbuchstaben
+      // "X 87.98" -> "X87.98", "X- 4" -> "X-4"
+      t = t.replace(/\b([XZIKNGL])\s+(-?)\s*([\dO.])/g, "$1$2$3");
+      t = t.replace(/(?<=[XZIKFGNR=\-][\d.]{0,10})O(?=[\d.\s]|$)/g, "0");
+      // 9L9 / 9|9 -> 919
+      t = t.replace(/(?<=\d)[L|](?=\d)/g, "1");
+      t = t.replace(/-\s+(\d)/g, "-$1");
+      return t.replace(/\s{2,}/g, " ").trim();
+    }).join("\n").trim();
+  }
+
+  static ncBlock(e) {
+    const g = e.gKreis;
+    const f = Fmt.zahl;
+    const zeilen = [];
+    if (e.ohneKreis1) zeilen.push(`G01 X${f(e.eingabe.durchmesser)} Z${f(e.ecke1.z)}`);
+    else {
+      zeilen.push(`G01 X${f(e.eingabe.durchmesser)} Z${f(e.start.z)}`);
+      zeilen.push(`${g} X${f(e.ende1.x)} Z${f(e.ende1.z)} I${f(e.i1)} K${f(e.k1)}`);
+    }
+    zeilen.push(`G01 X${f(e.start2.x)} Z${f(e.start2.z)}`);
+    if (!e.ohneKreis2) zeilen.push(`${g} X${f(e.ende2.x)} Z${f(e.ende2.z)} I${f(e.i2)} K${f(e.k2)}`);
+    return zeilen.join("\n");
+  }
+
+  static l170Aufruf(e, anhalten = true) {
+    const f = Fmt.zahl;
+    const g = e.seite > 0 ? "G02" : "G03";
+    return `R30=${f(e.durchmesser)} R31=${f(e.zEcke)} R32=${f(e.zPlan)} R33=${f(e.winkel)} ` +
+      `R34=${f(e.radiusZylinder)} R35=${f(e.radiusPlan)} R36=${e.seite} R37=${anhalten ? 1 : 0}\n` +
+      "L170\n" +
+      "G01 X R30 Z R55\n" +
+      `${g} X R56 Z R57 I R58 K R59\n` +
+      "G01 X R60 Z R61\n" +
+      `${g} X R62 Z R63 I R64 K R65`;
+  }
+}
+</script>
+
+<!-- Oberfläche: wie ui/*.kt der Android-App, ohne Foto/Bild/Lens. -->
+<script>
+"use strict";
+
+// ---------- Hilfen ----------
+
+function h(tag, attrs, ...kinder) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k === "class") e.className = v;
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kind of kinder.flat()) if (kind != null && kind !== false) e.append(kind);
+  return e;
+}
+
+const speicher = {
+  lies(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  schreib(k, v) { try { localStorage.setItem(k, v); } catch { /* privates Fenster o.ä. */ } },
+};
+
+let toastUhr = 0;
+function toast(text) {
+  const t = document.getElementById("toast");
+  const offen = document.querySelector("dialog[open]");
+  (offen || document.body).append(t);
+  t.textContent = text;
+  t.classList.add("sichtbar");
+  clearTimeout(toastUhr);
+  toastUhr = setTimeout(() => t.classList.remove("sichtbar"), 2200);
+}
+
+async function kopiere(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const t = h("textarea", { style: "position:fixed;opacity:0" });
+    t.value = text;
+    (document.querySelector("dialog[open]") || document.body).append(t);
+    t.select();
+    try { document.execCommand("copy"); } catch { /* nichts */ }
+    t.remove();
+  }
+  toast("Kopiert");
+}
+
+const ZAHL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+function lies(s) {
+  const t = s.trim().replaceAll(",", ".");
+  return ZAHL.test(t) ? Number(t) : null;
+}
+const zeilenVon = text => text.split(/\r\n|\n|\r/);
+
+// ---------- Grafik (wie ui/KonturGrafik.kt) ----------
+
+/** Ein Stück Bahn: Gerade (mitte == null) oder Kreis um mitte. */
+const gSeg = (a, b, mitte = null, uhrzeiger = true, fehler = false, eilgang = false) =>
+  ({ a, b, mitte, uhrzeiger, fehler, eilgang });
+const gPunkt = (p, text) => ({ p, text });
+
+const alleGrafiken = new Set();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => alleGrafiken.forEach(g => g.zeichne()));
+
+class KonturGrafik {
+  constructor() {
+    this.canvas = h("canvas");
+    this.hervorText = h("div", { class: "hervor-text" });
+    this.wurzel = h("div", { class: "grafik" }, this.canvas, this.hervorText,
+      h("div", { class: "tipp" }, "Zoomen mit zwei Fingern · Doppeltipp = zurücksetzen"));
+    this.daten = { bahn: [], zeichnung: [], punkte: [], mitten: [], hervor: null };
+    this.zoom = 1;
+    this.verschub = { x: 0, y: 0 };
+    this.zeiger = new Map();
+    this.tippStart = null;
+    this.letzterTipp = null;
+
+    const c = this.canvas;
+    c.addEventListener("pointerdown", ev => this.runter(ev));
+    c.addEventListener("pointermove", ev => this.bewegt(ev));
+    c.addEventListener("pointerup", ev => this.hoch(ev));
+    c.addEventListener("pointercancel", ev => this.zeiger.delete(ev.pointerId));
+    c.addEventListener("wheel", ev => {
+      ev.preventDefault();
+      this.zoomUm(this.pos(ev), Math.exp(-ev.deltaY * 0.0015));
+      this.zeichne();
+    }, { passive: false });
+    new ResizeObserver(() => this.zeichne()).observe(this.wurzel);
+    alleGrafiken.add(this);
+  }
+
+  setze(d) {
+    this.daten = { bahn: [], zeichnung: [], punkte: [], mitten: [], hervor: null, ...d };
+    this.hervorText.textContent = this.daten.hervor?.text || "";
+    this.zeichne();
+  }
+
+  pos(ev) {
+    const b = this.canvas.getBoundingClientRect();
+    return { x: ev.clientX - b.left, y: ev.clientY - b.top };
+  }
+
+  zuruecksetzen() { this.zoom = 1; this.verschub = { x: 0, y: 0 }; this.zeichne(); }
+
+  runter(ev) {
+    this.canvas.setPointerCapture(ev.pointerId);
+    const p = this.pos(ev);
+    this.zeiger.set(ev.pointerId, p);
+    this.tippStart = this.zeiger.size === 1 ? { t: performance.now(), ...p } : null;
+  }
+
+  bewegt(ev) {
+    const alt = this.zeiger.get(ev.pointerId);
+    if (!alt) return;
+    const neu = this.pos(ev);
+    if (this.zeiger.size === 1) {
+      this.verschub.x += neu.x - alt.x;
+      this.verschub.y += neu.y - alt.y;
+    } else if (this.zeiger.size === 2) {
+      const anderer = [...this.zeiger].find(([id]) => id !== ev.pointerId)[1];
+      const dAlt = Math.hypot(alt.x - anderer.x, alt.y - anderer.y);
+      const dNeu = Math.hypot(neu.x - anderer.x, neu.y - anderer.y);
+      const mAlt = { x: (alt.x + anderer.x) / 2, y: (alt.y + anderer.y) / 2 };
+      const mNeu = { x: (neu.x + anderer.x) / 2, y: (neu.y + anderer.y) / 2 };
+      if (dAlt > 0) this.zoomUm(mAlt, dNeu / dAlt);
+      this.verschub.x += mNeu.x - mAlt.x;
+      this.verschub.y += mNeu.y - mAlt.y;
+    }
+    this.zeiger.set(ev.pointerId, neu);
+    this.zeichne();
+  }
+
+  hoch(ev) {
+    const p = this.pos(ev);
+    this.zeiger.delete(ev.pointerId);
+    const s = this.tippStart;
+    this.tippStart = null;
+    if (!s || performance.now() - s.t > 250 || Math.hypot(p.x - s.x, p.y - s.y) > 10) return;
+    // Doppeltipp = zurücksetzen
+    const l = this.letzterTipp;
+    if (l && s.t - l.t < 350 && Math.hypot(s.x - l.x, s.y - l.y) < 30) {
+      this.letzterTipp = null;
+      this.zuruecksetzen();
+    } else this.letzterTipp = s;
+  }
+
+  /** Zoomen so, dass der Punkt q auf dem Bildschirm stehen bleibt. */
+  zoomUm(q, faktor) {
+    const neuZoom = Math.min(Math.max(this.zoom * faktor, 0.5), 40);
+    const f = neuZoom / this.zoom;
+    const cx = this.wurzel.clientWidth / 2, cy = this.wurzel.clientHeight / 2;
+    this.verschub.x = q.x - cx - (q.x - cx - this.verschub.x) * f;
+    this.verschub.y = q.y - cy - (q.y - cy - this.verschub.y) * f;
+    this.zoom = neuZoom;
+  }
+
+  zeichne() {
+    const breite = this.wurzel.clientWidth, hoehe = this.wurzel.clientHeight;
+    if (!breite || !hoehe) return;
+    const dpr = window.devicePixelRatio || 1;
+    const c = this.canvas;
+    if (c.width !== Math.round(breite * dpr) || c.height !== Math.round(hoehe * dpr)) {
+      c.width = Math.round(breite * dpr);
+      c.height = Math.round(hoehe * dpr);
+    }
+    const ctx = c.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, breite, hoehe);
+
+    const { bahn, zeichnung, punkte, mitten, hervor } = this.daten;
+    const alle = [];
+    bahn.forEach(s => alle.push(s.a, s.b));
+    alle.push(...zeichnung, ...mitten);
+    punkte.forEach(p => alle.push(p.p));
+    const gueltig = alle.filter(p => Number.isFinite(p.z) && Number.isFinite(p.r));
+    if (gueltig.length === 0) return;
+
+    const css = getComputedStyle(document.documentElement);
+    const farbe = n => css.getPropertyValue(n).trim();
+    const farbeBahn = farbe("--primaer"), farbeFehler = farbe("--fehler"), farbeHervor = farbe("--akzent");
+    const farbeHilfe = farbe("--text2"), farbeText = farbe("--text");
+
+    let zMin = Math.min(...gueltig.map(p => p.z)), zMax = Math.max(...gueltig.map(p => p.z));
+    let rMin = Math.min(...gueltig.map(p => p.r)), rMax = Math.max(...gueltig.map(p => p.r));
+    const spanne = Math.max(Math.max(zMax - zMin, rMax - rMin), 0.5);
+    const rand = spanne * 0.18;
+    zMin -= rand; zMax += rand; rMin -= rand; rMax += rand;
+    const s = Math.min(breite / (zMax - zMin), hoehe / (rMax - rMin)) * this.zoom;
+    const mz = (zMin + zMax) / 2, mr = (rMin + rMax) / 2;
+    const bild = p => ({
+      x: breite / 2 + (p.z - mz) * s + this.verschub.x,
+      y: hoehe / 2 - (p.r - mr) * s + this.verschub.y,
+    });
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Zeichnung (scharfe Ecken) gestrichelt
+    if (zeichnung.length >= 2) {
+      ctx.beginPath();
+      zeichnung.forEach((p, i) => { const o = bild(p); i ? ctx.lineTo(o.x, o.y) : ctx.moveTo(o.x, o.y); });
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = farbeHilfe; ctx.lineWidth = 1.2; ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Bahn
+    bahn.forEach(seg => {
+      ctx.beginPath();
+      pfadVon(ctx, seg, bild);
+      ctx.strokeStyle = seg.fehler ? farbeFehler : farbeBahn;
+      ctx.lineWidth = seg.eilgang ? 1.2 : 2.5;
+      ctx.setLineDash(seg.eilgang ? [2.5, 3.5] : []);
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    // Hervorhebung
+    if (hervor) {
+      ctx.strokeStyle = farbeHervor;
+      (hervor.linien || []).forEach(([a, b]) => {
+        const oa = bild(a), ob = bild(b);
+        ctx.beginPath(); ctx.moveTo(oa.x, oa.y); ctx.lineTo(ob.x, ob.y);
+        ctx.lineWidth = 3.5; ctx.stroke();
+      });
+      if (hervor.bogen) { ctx.beginPath(); pfadVon(ctx, hervor.bogen, bild); ctx.lineWidth = 4.5; ctx.stroke(); }
+      if (hervor.punkt) {
+        const o = bild(hervor.punkt);
+        ctx.beginPath(); ctx.arc(o.x, o.y, 5.5, 0, 2 * Math.PI); ctx.fillStyle = farbeHervor; ctx.fill();
+      }
+    }
+    // Mittelpunkte
+    ctx.save();
+    ctx.globalAlpha = 0.55; ctx.strokeStyle = farbeHilfe; ctx.lineWidth = 1;
+    mitten.forEach(m => {
+      const o = bild(m);
+      ctx.beginPath();
+      ctx.moveTo(o.x - 4.5, o.y); ctx.lineTo(o.x + 4.5, o.y);
+      ctx.moveTo(o.x, o.y - 4.5); ctx.lineTo(o.x, o.y + 4.5);
+      ctx.stroke();
+    });
+    ctx.restore();
+    // Punkte mit Beschriftung. Die Schrift kommt rechts oben an den Punkt; ist dort kein Platz
+    // (Rand oder andere Schrift), wird rechts unten, links oben oder links unten versucht.
+    ctx.fillStyle = farbeText;
+    ctx.font = "11px system-ui, -apple-system, Roboto, sans-serif";
+    ctx.textBaseline = "top";
+    const belegt = [];
+    const frei = b => b.x >= 2 && b.y >= 2 && b.x + b.w <= breite - 2 && b.y + b.h <= hoehe - 18 &&
+      belegt.every(a => b.x >= a.x + a.w || a.x >= b.x + b.w || b.y >= a.y + a.h || a.y >= b.y + b.h);
+    punkte.forEach(gp => {
+      const o = bild(gp.p);
+      ctx.beginPath(); ctx.arc(o.x, o.y, 3, 0, 2 * Math.PI); ctx.fill();
+      if (!gp.text || o.x < 0 || o.x > breite || o.y < 0 || o.y > hoehe) return;
+      const w = ctx.measureText(gp.text).width, hh = 13;
+      const box = [
+        { x: o.x + 5, y: o.y - 4 - hh }, { x: o.x + 5, y: o.y + 4 },
+        { x: o.x - 5 - w, y: o.y - 4 - hh }, { x: o.x - 5 - w, y: o.y + 4 },
+      ].map(b => ({ ...b, w, h: hh })).find(frei);
+      if (!box) return;
+      belegt.push(box);
+      ctx.fillText(gp.text, box.x, box.y);
+    });
+  }
+}
+
+function pfadVon(ctx, seg, bild) {
+  const a = bild(seg.a);
+  ctx.moveTo(a.x, a.y);
+  const m = seg.mitte;
+  if (m == null) { const b = bild(seg.b); ctx.lineTo(b.x, b.y); return; }
+  const ra = Math.hypot(seg.a.z - m.z, seg.a.r - m.r);
+  const rb = Math.hypot(seg.b.z - m.z, seg.b.r - m.r);
+  const ta = Math.atan2(seg.a.r - m.r, seg.a.z - m.z);
+  const tb = Math.atan2(seg.b.r - m.r, seg.b.z - m.z);
+  let lauf = tb - ta;
+  if (seg.uhrzeiger && lauf > 0) lauf -= 2 * Math.PI;
+  if (!seg.uhrzeiger && lauf < 0) lauf += 2 * Math.PI;
+  const n = Math.max(12, Math.trunc(Math.abs(lauf) * 30));
+  for (let i = 1; i <= n; i++) {
+    const f = i / n;
+    const t = ta + lauf * f;
+    const r = ra + (rb - ra) * f;
+    const p = bild(new P(m.z + r * Math.cos(t), m.r + r * Math.sin(t)));
+    ctx.lineTo(p.x, p.y);
+  }
+}
+
+// ---------- Kanten-Editor / Assistent (wie ui/KantenEditor.kt) ----------
+
+const FELDER = [
+  { r: "R30", titel: "Zylinder-Ø", hilfe: "Durchmesser des Zylinders vor der Kante (X-Wert)." },
+  { r: "R31", titel: "Z scharfe Ecke", hilfe: "Z, wo Zylinder und Schräge ohne Radius zusammentreffen (aus der Zeichnung)." },
+  { r: "R32", titel: "Z Planfläche", hilfe: "Z der Planfläche am Ende der Schräge." },
+  { r: "R33", titel: "Winkel Schräge in °", hilfe: "Winkel der Schräge zur Z-Achse (zum Zylinder), zwischen 0 und 90." },
+  { r: "R34", titel: "Radius Ecke Zylinder", hilfe: "Radius an der Ecke Zylinder → Schräge. 0 = scharfe Ecke." },
+  { r: "R35", titel: "Radius Ecke Planfläche", hilfe: "Radius an der Ecke Schräge → Planfläche. 0 = scharfe Ecke." },
+];
+
+const BEISPIEL = new KantenEingabe(87.98, -4, 0, 10, 2, 1);
+
+function bahnVon(e) {
+  const cw = e.eingabe.seite > 0;
+  const s = e.eingabe.seite;
+  const anfahrt = new P(e.start.z - s * (2 * Math.abs(e.ende1.z - e.start.z) + 1), e.start.r);
+  const unten = new P(e.ende2.z, e.ende2.r - 1);
+  return [
+    gSeg(anfahrt, e.start),
+    e.ohneKreis1 ? null : gSeg(e.start, e.ende1, e.mitte1, cw),
+    gSeg(e.ende1, e.start2),
+    e.ohneKreis2 ? null : gSeg(e.start2, e.ende2, e.mitte2, cw),
+    gSeg(e.ende2, unten),
+  ].filter(Boolean);
+}
+
+/** Scharfe Kontur aus der Zeichnung: Zylinder – Ecke – Schräge – Ecke – Planfläche. */
+function zeichnungVon(e) {
+  const r0 = e.durchmesser / 2;
+  const s = e.seite;
+  const ta = Math.tan(zuRad(Math.min(Math.max(e.winkel, 0.1), 89.9)));
+  const rB = r0 - Math.abs(e.zPlan - e.zEcke) * ta;
+  const laenge = Math.max(Math.abs(e.zPlan - e.zEcke), 1);
+  return [
+    new P(e.zEcke - s * laenge * 0.6, r0),
+    new P(e.zEcke, r0),
+    new P(e.zPlan, rB),
+    new P(e.zPlan, rB - laenge * 0.5),
+  ];
+}
+
+function hervorhebung(i, e, erg) {
+  const z = zeichnungVon(e);
+  switch (i) {
+    case 0: return { linien: [[z[0], z[1]]], text: "Ø Zylinder" };
+    case 1: return { punkt: z[1], text: "Z scharfe Ecke" };
+    case 2: return { linien: [[z[2], z[3]]], text: "Z Planfläche" };
+    case 3: return { linien: [[z[1], z[2]]], text: "Winkel der Schräge" };
+    case 4: return {
+      bogen: erg && !erg.ohneKreis1 ? gSeg(erg.start, erg.ende1, erg.mitte1, e.seite > 0) : null,
+      punkt: !erg || erg.ohneKreis1 ? z[1] : null, text: "Radius Ecke Zylinder",
+    };
+    case 5: return {
+      bogen: erg && !erg.ohneKreis2 ? gSeg(erg.start2, erg.ende2, erg.mitte2, e.seite > 0) : null,
+      punkt: !erg || erg.ohneKreis2 ? z[2] : null, text: "Radius Ecke Planfläche",
+    };
+    default: return null;
+  }
+}
+
+function codeKarte(titel, code) {
+  return h("div", { class: "karte" },
+    h("div", { class: "karte-kopf" }, h("h3", null, titel),
+      h("button", { class: "text-knopf", type: "button", onclick: () => kopiere(code) }, "Kopieren")),
+    h("pre", { class: "code" }, code));
+}
+
+function ergebnisKarte(e) {
+  const [d1, d2] = Kante.radiusAbweichungGerundet(e);
+  const ok = d1 <= NcProgramm.TOLERANZ && d2 <= NcProgramm.TOLERANZ;
+  return h("div", { class: "karte stapel" },
+    h("h3", { style: "margin:0;font-size:15px" }, "Ergebnis (wie L170 in R55…R65)"),
+    h("div", { class: "rgitter" }, e.rParameter().map(([n, v]) => h("span", null, `${n} = ${Fmt.zahl(v)}`))),
+    h("p", { class: ok ? "ok-text" : "fehler-text-fett" },
+      `Kreisprüfung (3 Nachkommastellen): ΔR1 ${d1.toFixed(4)} · ΔR2 ${d2.toFixed(4)} ${ok ? "✓" : "✗"}`),
+    h("p", { class: "klein" }, `Kreisrichtung: ${e.gKreis}  ·  Seite R36 = ${e.eingabe.seite}`));
+}
+
+/**
+ * Assistent wie Zyklus L170: Werte aus der Zeichnung eingeben, Tangentenpunkte und I/K werden berechnet.
+ * Mit „Schritt für Schritt“ wird jeder Wert einzeln abgefragt – wie der Dialog an der Steuerung.
+ */
+function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
+  const start = vorschlag || BEISPIEL;
+  const werte = [start.durchmesser, start.zEcke, start.zPlan, start.winkel, start.radiusZylinder, start.radiusPlan].map(Fmt.zahl);
+  let aktiv = -1;
+  let schrittModus = vorschlag == null;
+  let schritt = 0;
+  let felder = [];     // sichtbare Eingabefelder: { i, input }
+  let weiterKnopf = null;
+
+  const chipSchritt = h("button", { class: "chip", type: "button" }, "Schritt für Schritt");
+  const chipAlle = h("button", { class: "chip", type: "button" }, "Alle Felder");
+  const grafik = new KonturGrafik();
+  const eingabeBereich = h("div", { class: "stapel" });
+  const ergebnisBereich = h("div", { class: "stapel" });
+  const wurzel = h("div", { class: "stapel" }, h("div", { class: "chips" }, chipSchritt, chipAlle),
+    grafik.wurzel, eingabeBereich, ergebnisBereich);
+
+  chipSchritt.addEventListener("click", () => { schrittModus = true; schritt = 0; baueEingaben(true); });
+  chipAlle.addEventListener("click", () => { schrittModus = false; baueEingaben(false); });
+
+  const schrittLaeuft = () => schrittModus && schritt < FELDER.length;
+
+  function rechne() {
+    const zahlen = werte.map(lies);
+    let eingabe = null, ergebnis = null, fehler = null;
+    if (zahlen.every(z => z != null)) eingabe = new KantenEingabe(...zahlen);
+    if (eingabe) {
+      try { ergebnis = Kante.berechne(eingabe); } catch (err) {
+        if (!(err instanceof GeometrieFehler)) throw err;
+        fehler = err.message;
+      }
+    } else fehler = "Bitte alle Werte als Zahl eingeben.";
+    return { zahlen, eingabe, ergebnis, fehler };
+  }
+
+  function zahlFeld(i, label) {
+    const input = h("input", {
+      class: "zahl", type: "text", inputmode: "decimal", autocomplete: "off", spellcheck: "false",
+      enterkeyhint: schrittLaeuft() ? "next" : "done", "aria-label": label,
+    });
+    input.value = werte[i];
+    input.addEventListener("input", () => { werte[i] = input.value; aktualisiere(); });
+    input.addEventListener("focus", () => { if (aktiv !== i) { aktiv = i; aktualisiere(); } });
+    let warFokus = false;
+    const pm = h("button", { class: "pm", type: "button", "aria-label": "Vorzeichen umdrehen" }, "±");
+    pm.addEventListener("pointerdown", () => { warFokus = document.activeElement === input; });
+    pm.addEventListener("mousedown", ev => ev.preventDefault());
+    pm.addEventListener("click", () => {
+      const v = input.value.trim();
+      input.value = v.startsWith("-") ? v.slice(1) : "-" + v;
+      werte[i] = input.value;
+      aktiv = i;
+      aktualisiere();
+      if (warFokus) input.focus();
+    });
+    felder.push({ i, input });
+    return h("label", { class: "feld" }, label, h("div", { class: "zahl-reihe" }, input, pm));
+  }
+
+  function baueEingaben(fokus) {
+    felder = [];
+    weiterKnopf = null;
+    chipSchritt.setAttribute("aria-pressed", String(schrittModus));
+    chipAlle.setAttribute("aria-pressed", String(!schrittModus));
+    if (schrittLaeuft()) {
+      const f = FELDER[schritt];
+      const feld = zahlFeld(schritt, `${f.r} =`);
+      const zurueck = h("button", { class: "knopf", type: "button", disabled: schritt === 0 }, "Zurück");
+      zurueck.addEventListener("click", () => { if (schritt > 0) { schritt--; baueEingaben(true); } });
+      weiterKnopf = h("button", { class: "knopf voll", type: "button" }, schritt === FELDER.length - 1 ? "Berechnen" : "Weiter");
+      const weiter = () => { if (lies(werte[schritt]) != null) { schritt++; baueEingaben(schritt < FELDER.length); } };
+      weiterKnopf.addEventListener("click", weiter);
+      felder[0].input.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); weiter(); } });
+      eingabeBereich.replaceChildren(
+        h("p", { class: "klein" }, `Schritt ${schritt + 1} von ${FELDER.length}`),
+        h("p", { class: "schritt-titel" }, `${f.titel} (${f.r})`),
+        h("p", null, f.hilfe),
+        feld,
+        h("div", { class: "reihe" }, zurueck, weiterKnopf));
+    } else {
+      const teile = FELDER.map((f, i) => zahlFeld(i, `${f.titel} (${f.r})`));
+      if (schrittModus) {
+        teile.push(h("button", { class: "text-knopf", type: "button",
+          onclick: () => { schritt = 0; baueEingaben(true); } }, "Nochmal Schritt für Schritt"));
+      }
+      eingabeBereich.replaceChildren(...teile);
+    }
+    aktualisiere();
+    if (fokus && felder[0]) felder[0].input.focus({ preventScroll: false });
+  }
+
+  function aktualisiere() {
+    const { zahlen, eingabe, ergebnis, fehler } = rechne();
+    const hervorIndex = schrittLaeuft() ? schritt : aktiv;
+    grafik.setze({
+      bahn: ergebnis ? bahnVon(ergebnis) : [],
+      zeichnung: zeichnungVon(eingabe || start),
+      punkte: ergebnis ? [
+        gPunkt(ergebnis.start, `Z${Fmt.zahl(ergebnis.start.z)}`),
+        gPunkt(ergebnis.ende1, `X${Fmt.zahl(ergebnis.ende1.x)} Z${Fmt.zahl(ergebnis.ende1.z)}`),
+        gPunkt(ergebnis.start2, `X${Fmt.zahl(ergebnis.start2.x)} Z${Fmt.zahl(ergebnis.start2.z)}`),
+        gPunkt(ergebnis.ende2, `X${Fmt.zahl(ergebnis.ende2.x)}`),
+      ] : [],
+      mitten: ergebnis ? [ergebnis.mitte1, ergebnis.mitte2] : [],
+      hervor: hervorhebung(hervorIndex, eingabe || start, ergebnis),
+    });
+    felder.forEach(({ i, input }) => input.classList.toggle("ungueltig", zahlen[i] == null));
+    if (weiterKnopf) weiterKnopf.disabled = zahlen[schritt] == null;
+
+    const teile = [];
+    if (!schrittLaeuft()) {
+      if (fehler != null) teile.push(h("div", { class: "karte fehler" }, fehler));
+      if (ergebnis) {
+        const block = NcProgramm.ncBlock(ergebnis);
+        teile.push(ergebnisKarte(ergebnis), codeKarte("NC-Sätze mit festen Werten", block));
+        if (ergebnis.ohneKreis1 || ergebnis.ohneKreis2) {
+          teile.push(h("p", { class: "klein" },
+            "Hinweis: L170 rechnet nur mit Radien größer 0. Für eine scharfe Ecke die Sätze mit festen Werten nehmen."));
+        } else teile.push(codeKarte("Oder an der Maschine mit L170", NcProgramm.l170Aufruf(ergebnis.eingabe)));
+        teile.push(h("button", { class: "knopf voll", type: "button", onclick: () => onUebernehmen(ergebnis) }, uebernehmenText));
+      }
+    }
+    ergebnisBereich.replaceChildren(...teile);
+  }
+
+  baueEingaben(false);
+  return wurzel;
+}
+
+// ---------- Tab „Code“ (wie ui/CodeScreen.kt) ----------
+
+const el = id => document.getElementById(id);
+const feldCode = el("code");
+const zustand = { code: speicher.lies("nc-kreis-code") || "", vorher: null, geaendert: [] };
+const codeGrafik = new KonturGrafik();
+el("code-grafik-bereich").append(codeGrafik.wurzel);
+
+function zeigeMeldung(text, aktion) {
+  const m = el("meldung");
+  if (!text) { m.hidden = true; m.replaceChildren(); return; }
+  m.hidden = false;
+  m.replaceChildren(text);
+  if (aktion) m.append(" ", h("button", { class: "text-knopf", type: "button", style: "padding:0 4px;min-height:0",
+    onclick: () => { zeigeMeldung(null); aktion.tun(); } }, aktion.text));
+}
+
+function setzeCode(text, { ausFeld = false } = {}) {
+  zustand.code = text;
+  if (!ausFeld) feldCode.value = text;
+  speicher.schreib("nc-kreis-code", text);
+  zeichneCode();
+}
+
+function zeichneCode() {
+  const code = zustand.code;
+  const programm = new NcProgramm(zeilenVon(code));
+  el("berechnen").disabled = code.trim() === "";
+  el("anleitung").hidden = code.trim() !== "";
+
+  const g = el("geaendert");
+  g.hidden = zustand.geaendert.length === 0;
+  if (!g.hidden) {
+    g.replaceChildren(
+      h("h3", { style: "margin:0 0 4px;font-size:15px" }, "Geänderte Sätze"),
+      ...zustand.geaendert.map(z => h("div", { class: "mono" }, z)),
+      zustand.vorher != null ? h("button", { class: "text-knopf", type: "button", onclick: () => {
+        const alt = zustand.vorher;
+        zustand.vorher = null; zustand.geaendert = [];
+        setzeCode(alt);
+      } }, "Rückgängig") : null);
+  }
+
+  el("code-grafik-bereich").hidden = programm.fahrsaetze.length === 0;
+  if (programm.fahrsaetze.length > 0) {
+    codeGrafik.setze({
+      bahn: programm.fahrsaetze.filter(f => f.start && f.ende)
+        .map(f => gSeg(f.start, f.ende, f.mitte, f.art === Art.G02, f.fehlerhaft, f.art === Art.G00)),
+      mitten: programm.kreise.map(k => k.mitte).filter(Boolean),
+      punkte: programm.kreise.filter(k => k.fehlerhaft && k.ende).map(k => gPunkt(k.ende, `Zeile ${k.zeile + 1}`)),
+    });
+  }
+
+  const kreise = programm.kreise;
+  el("kreise-bereich").hidden = kreise.length === 0;
+  el("kreise").replaceChildren(...kreise.map(k => {
+    const r = k.radien;
+    const zeile = programm.zeilen[k.zeile].trim().slice(0, 48);
+    const text = r == null ? "Startpunkt unbekannt – nicht prüfbar"
+      : `R Start ${r[0].toFixed(4)} · R Ende ${r[1].toFixed(4)} · ΔR ${k.deltaR.toFixed(4)}`;
+    const art = r == null ? "grau" : k.fehlerhaft ? "fehler" : "ok";
+    return h("div", { class: `karte ${art}` },
+      h("div", { class: "mono klein", style: "color:inherit" }, `Zeile ${k.zeile + 1}: ${zeile}`),
+      h("div", { style: "font-size:14px" },
+        (r != null && k.fehlerhaft ? "✗ Kreisendpunktfehler – " : r != null ? "✓ " : "") + text));
+  }));
+  el("programm-hinweise").replaceChildren(...[...new Set(programm.hinweise)].map(t => h("p", { class: "klein" }, t)));
+}
+
+feldCode.addEventListener("input", () => setzeCode(feldCode.value, { ausFeld: true }));
+
+// Einfügen per Langdruck ins Feld: gleich bereinigen
+feldCode.addEventListener("paste", ev => {
+  const roh = ev.clipboardData?.getData("text/plain");
+  if (!roh) return;
+  ev.preventDefault();
+  const sauber = NcProgramm.ocrBereinigen(roh);
+  const { selectionStart: a, selectionEnd: b, value } = feldCode;
+  feldCode.value = value.slice(0, a) + sauber + value.slice(b);
+  feldCode.selectionStart = feldCode.selectionEnd = a + sauber.length;
+  setzeCode(feldCode.value, { ausFeld: true });
+  zeigeMeldung("Text eingefügt und bereinigt. Bitte mit dem Bildschirm vergleichen – besonders Minuszeichen und Punkte.");
+});
+
+el("einfuegen").addEventListener("click", async () => {
+  let text = null;
+  try { text = await navigator.clipboard.readText(); } catch { text = null; }
+  if (text == null) {
+    zeigeMeldung("Kein Zugriff auf die Zwischenablage. Lange ins Textfeld tippen → „Einfügen“.");
+    feldCode.focus();
+    return;
+  }
+  if (text.trim() === "") { zeigeMeldung("Die Zwischenablage ist leer. In Lens zuerst Text markieren → „Kopieren“."); return; }
+  setzeCode(NcProgramm.ocrBereinigen(text));
+  zeigeMeldung("Text eingefügt und bereinigt. Bitte mit dem Bildschirm vergleichen – besonders Minuszeichen und Punkte.");
+});
+
+el("bereinigen").addEventListener("click", () => setzeCode(NcProgramm.ocrBereinigen(zustand.code)));
+
+el("leeren").addEventListener("click", () => {
+  const alt = zustand.code;
+  zustand.vorher = alt; zustand.geaendert = [];
+  setzeCode("");
+  el("hinweis").hidden = true;
+  if (alt.trim() !== "") zeigeMeldung("Code geleert.", { text: "Rückgängig", tun: () => { zustand.vorher = null; setzeCode(alt); } });
+  else zeigeMeldung(null);
+});
+
+const dialog = el("dialog-kante");
+el("dialog-abbrechen").addEventListener("click", () => dialog.close());
+dialog.addEventListener("close", () => el("dialog-inhalt").replaceChildren());
+
+el("berechnen").addEventListener("click", () => {
+  const programm = new NcProgramm(zeilenVon(zustand.code));
+  const m = programm.findeMuster();
+  const hinweis = el("hinweis");
+  if (m == null) {
+    hinweis.textContent = "Keine Kante „Kreis – Gerade – Kreis“ mit bekanntem Startpunkt gefunden. " +
+      "Prüfe, ob X/Z vor dem ersten Kreis im Code stehen, oder nutze den Assistenten.";
+    hinweis.hidden = false;
+    return;
+  }
+  hinweis.hidden = true;
+  const code = zustand.code;
+  el("dialog-inhalt").replaceChildren(
+    h("p", { style: "margin-bottom:8px" },
+      `Vorschlag aus deinem Code (Zeilen ${m.kreis1.zeile + 1}–${m.kreis2.zeile + 1}). ` +
+      "Bitte mit der Zeichnung vergleichen und bei Bedarf korrigieren."),
+    kantenEditor({
+      vorschlag: programm.eingabeAus(m),
+      uebernehmenText: "In den Code übernehmen",
+      onUebernehmen: erg => {
+        const [neu, zeilen] = programm.ersetze(m, erg);
+        const neueZeilen = zeilenVon(neu);
+        zustand.vorher = code;
+        zustand.geaendert = [...zeilen].sort((a, b) => a - b).map(z => neueZeilen[z]);
+        dialog.close();
+        zeigeMeldung(null);
+        setzeCode(neu);
+        el("geaendert").scrollIntoView({ behavior: "smooth", block: "center" });
+      },
+    }));
+  dialog.showModal();
+  el("dialog-inhalt").scrollTop = 0;
+});
+
+// ---------- Tab „Assistent“ ----------
+
+el("tab-assistent").append(kantenEditor({
+  vorschlag: null,
+  uebernehmenText: "Sätze an den Code anhängen",
+  onUebernehmen: erg => {
+    const block = NcProgramm.ncBlock(erg);
+    setzeCode(zustand.code.trim() === "" ? block : zustand.code.trimEnd() + "\n" + block);
+    zeigeTab("code");
+    toast("Sätze angehängt");
+  },
+}));
+
+// ---------- Tabs ----------
+
+function zeigeTab(name) {
+  el("tab-code").hidden = name !== "code";
+  el("tab-assistent").hidden = name !== "assistent";
+  el("titel").textContent = name === "code" ? "NC Kreis – Code" : "NC Kreis – Assistent L170";
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => zeigeTab(b.dataset.tab)));
+
+setzeCode(zustand.code);
+
+// Offline: Seite im Browser speichern (nur über http/https, nicht als einzelne Datei)
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
