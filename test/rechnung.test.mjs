@@ -54,7 +54,7 @@ test("gespiegelte Kante", () => {
   nah(0.826, e.start2.z, 0.0006);
 });
 
-test("scharfe Ecke R34 = 0", () => {
+test("scharfe Ecke am Zylinder (Radius 0)", () => {
   const e = Kante.berechne(new KantenEingabe(87.98, -4.0, 0.0, 10.0, 0.0, 1.0));
   assert.equal(NcProgramm.ncBlock(e), "G01 X87.98 Z-4\nG01 X86.861 Z-0.826\nG02 X84.891 Z0 I-0.985 K-0.174");
 });
@@ -149,10 +149,9 @@ test("Lesefehler aus Lens-Foto vom 31.10.", () => {
   assert.equal(p.fahrsaetze[4].art, "G00");
 });
 
-test("R-Parameter und L170-Aufruf", () => {
-  const ein = new KantenEingabe(87.98, -4.0, 0.0, 10.0, 2.0, 1.0);
-  const aufruf = NcProgramm.l170Aufruf(ein);
-  assert.ok(aufruf.startsWith("R30=87.98 R31=-4 R32=0 R33=10 R34=2 R35=1 R36=1 R37=1\nL170\n"));
-  const p = new NcProgramm(zeilen(aufruf));
-  assert.equal(p.rWerte.get(30), 87.98);
+test("R-Parameter im Code", () => {
+  const p = new NcProgramm(zeilen("R10=87.98 R11=-4\nG01 X R10 Z R11"));
+  assert.equal(p.rWerte.get(10), 87.98);
+  assert.equal(p.fahrsaetze[0].ende.x, 87.98);
+  assert.equal(p.fahrsaetze[0].ende.z, -4);
 });

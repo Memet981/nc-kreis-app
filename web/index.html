@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NC Kreis</title>
-<meta name="description" content="Kreisendpunkte an Kanten (Zylinder – Radius – Schräge – Radius – Planfläche), passend zum Zyklus L170.">
+<meta name="description" content="Kreisendpunkte an Kanten (Zylinder – Radius – Schräge – Radius – Planfläche).">
 <meta name="theme-color" content="#1F3A5F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -134,7 +134,6 @@ input.zahl.ungueltig { border-color: var(--fehler); box-shadow: 0 0 0 1px var(--
 .grafik canvas { display: block; width: 100%; height: 100%; }
 .grafik .hervor-text { position: absolute; top: 8px; left: 10px; color: var(--akzent); font-size: 14px; font-weight: 600; pointer-events: none; }
 .grafik .tipp { position: absolute; right: 8px; bottom: 5px; font-size: 11px; color: var(--text2); opacity: .8; pointer-events: none; }
-.rgitter { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; font-family: var(--mono); font-size: 15px; }
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
   display: flex; justify-content: center;
@@ -246,10 +245,9 @@ class P {
 }
 
 /**
- * Eingaben wie Zyklus L170.
- * R30 Ø Zylinder, R31 Z scharfe Ecke, R32 Z Planfläche, R33 Winkel der Schräge (zur Z-Achse),
- * R34 Radius an der Ecke Zylinder/Schräge, R35 Radius an der Ecke Schräge/Planfläche.
- * Die Seite (R36) ergibt sich aus R31/R32: Planfläche bei größerem Z = +1, sonst -1.
+ * Werte aus der Zeichnung: Ø Zylinder, Z scharfe Ecke, Z Planfläche, Winkel der Schräge (zur Z-Achse),
+ * Radius an der Ecke Zylinder/Schräge, Radius an der Ecke Schräge/Planfläche.
+ * Die Seite ergibt sich aus Z Ecke/Z Planfläche: Planfläche bei größerem Z = +1, sonst -1.
  */
 class KantenEingabe {
   constructor(durchmesser, zEcke, zPlan, winkel, radiusZylinder, radiusPlan) {
@@ -267,34 +265,26 @@ class KantenEingabe {
   }
 }
 
-/** Ergebnis in derselben Belegung wie L170 (R55…R65). */
+/** Tangentenpunkte, Mittelpunkte und I/K der beiden Kreise. */
 class KantenErgebnis {
   constructor(eingabe, start, ende1, mitte1, i1, k1, start2, ende2, mitte2, i2, k2, ecke1, ecke2) {
     this.eingabe = eingabe;
-    this.start = start;     // R55: Tangentenpunkt auf dem Zylinder (Z), X = R30
-    this.ende1 = ende1;     // R56/R57
+    this.start = start;     // Tangentenpunkt auf dem Zylinder, Anfang Kreis 1
+    this.ende1 = ende1;     // Ende Kreis 1 = Anfang Schräge
     this.mitte1 = mitte1;
-    this.i1 = i1; this.k1 = k1; // R58/R59
-    this.start2 = start2;   // R60/R61
-    this.ende2 = ende2;     // R62/R63
+    this.i1 = i1; this.k1 = k1;
+    this.start2 = start2;   // Ende Schräge = Anfang Kreis 2
+    this.ende2 = ende2;     // Tangentenpunkt auf der Planfläche
     this.mitte2 = mitte2;
-    this.i2 = i2; this.k2 = k2; // R64/R65
+    this.i2 = i2; this.k2 = k2;
     this.ecke1 = ecke1;     // scharfe Ecke Zylinder/Schräge
     this.ecke2 = ecke2;     // scharfe Ecke Schräge/Planfläche
   }
   get gKreis() { return this.eingabe.seite > 0 ? "G02" : "G03"; }
-  /** R34 = 0: scharfe Ecke Zylinder/Schräge, kein erster Kreis. */
+  /** Radius 0: scharfe Ecke Zylinder/Schräge, kein erster Kreis. */
   get ohneKreis1() { return this.eingabe.radiusZylinder === 0; }
-  /** R35 = 0: scharfe Ecke Schräge/Planfläche, kein zweiter Kreis. */
+  /** Radius 0: scharfe Ecke Schräge/Planfläche, kein zweiter Kreis. */
   get ohneKreis2() { return this.eingabe.radiusPlan === 0; }
-
-  rParameter() {
-    return [
-      ["R55", this.start.z], ["R56", this.ende1.x], ["R57", this.ende1.z], ["R58", this.i1], ["R59", this.k1],
-      ["R60", this.start2.x], ["R61", this.start2.z], ["R62", this.ende2.x], ["R63", this.ende2.z],
-      ["R64", this.i2], ["R65", this.k2],
-    ];
-  }
 }
 
 class GeometrieFehler extends Error {
@@ -364,7 +354,7 @@ const Fmt = {
   },
 };
 
-/** Ein Wort im Satz, z.B. X87.98, F=2.4, Z R55. Position bezieht sich auf die Originalzeile. */
+/** Ein Wort im Satz, z.B. X87.98, F=2.4, Z R10. Position bezieht sich auf die Originalzeile. */
 class Wort {
   constructor(adresse, text, zahl, rRef, von, bis) {
     this.adresse = adresse; this.text = text; this.zahl = zahl; this.rRef = rRef; this.von = von; this.bis = bis;
@@ -536,7 +526,7 @@ class NcProgramm {
       setzeG(k1, e.gKreis);
       setze(k1, ["X", e.ende1.x], ["Z", e.ende1.z], ["I", e.i1], ["K", e.k1]);
     } else if (m.kreis1.istKreis) {
-      // Code hat Kreis, Zeichnung scharfe Ecke (R34 = 0) → Gerade bis zur Ecke
+      // Code hat Kreis, Zeichnung scharfe Ecke (Radius 0) → Gerade bis zur Ecke
       setzeG(k1, "G01");
       setze(k1, ["X", e.ecke1.x], ["Z", e.ecke1.z]);
       entferne(k1, "I", "K");
@@ -699,18 +689,6 @@ class NcProgramm {
     zeilen.push(`G01 X${f(e.start2.x)} Z${f(e.start2.z)}`);
     if (!e.ohneKreis2) zeilen.push(`${g} X${f(e.ende2.x)} Z${f(e.ende2.z)} I${f(e.i2)} K${f(e.k2)}`);
     return zeilen.join("\n");
-  }
-
-  static l170Aufruf(e, anhalten = true) {
-    const f = Fmt.zahl;
-    const g = e.seite > 0 ? "G02" : "G03";
-    return `R30=${f(e.durchmesser)} R31=${f(e.zEcke)} R32=${f(e.zPlan)} R33=${f(e.winkel)} ` +
-      `R34=${f(e.radiusZylinder)} R35=${f(e.radiusPlan)} R36=${e.seite} R37=${anhalten ? 1 : 0}\n` +
-      "L170\n" +
-      "G01 X R30 Z R55\n" +
-      `${g} X R56 Z R57 I R58 K R59\n` +
-      "G01 X R60 Z R61\n" +
-      `${g} X R62 Z R63 I R64 K R65`;
   }
 }
 </script>
@@ -1006,12 +984,12 @@ function pfadVon(ctx, seg, bild) {
 // ---------- Kanten-Editor / Assistent (wie ui/KantenEditor.kt) ----------
 
 const FELDER = [
-  { r: "R30", titel: "Zylinder-Ø", hilfe: "Durchmesser des Zylinders vor der Kante (X-Wert)." },
-  { r: "R31", titel: "Z scharfe Ecke", hilfe: "Z, wo Zylinder und Schräge ohne Radius zusammentreffen (aus der Zeichnung)." },
-  { r: "R32", titel: "Z Planfläche", hilfe: "Z der Planfläche am Ende der Schräge." },
-  { r: "R33", titel: "Winkel Schräge in °", hilfe: "Winkel der Schräge zur Z-Achse (zum Zylinder), zwischen 0 und 90." },
-  { r: "R34", titel: "Radius Ecke Zylinder", hilfe: "Radius an der Ecke Zylinder → Schräge. 0 = scharfe Ecke." },
-  { r: "R35", titel: "Radius Ecke Planfläche", hilfe: "Radius an der Ecke Schräge → Planfläche. 0 = scharfe Ecke." },
+  { titel: "Zylinder-Ø", hilfe: "Durchmesser des Zylinders vor der Kante (X-Wert)." },
+  { titel: "Z scharfe Ecke", hilfe: "Z, wo Zylinder und Schräge ohne Radius zusammentreffen (aus der Zeichnung)." },
+  { titel: "Z Planfläche", hilfe: "Z der Planfläche am Ende der Schräge." },
+  { titel: "Winkel Schräge in °", hilfe: "Winkel der Schräge zur Z-Achse (zum Zylinder), zwischen 0 und 90." },
+  { titel: "Radius Ecke Zylinder", hilfe: "Radius an der Ecke Zylinder → Schräge. 0 = scharfe Ecke." },
+  { titel: "Radius Ecke Planfläche", hilfe: "Radius an der Ecke Schräge → Planfläche. 0 = scharfe Ecke." },
 ];
 
 const BEISPIEL = new KantenEingabe(87.98, -4, 0, 10, 2, 1);
@@ -1075,15 +1053,14 @@ function ergebnisKarte(e) {
   const [d1, d2] = Kante.radiusAbweichungGerundet(e);
   const ok = d1 <= NcProgramm.TOLERANZ && d2 <= NcProgramm.TOLERANZ;
   return h("div", { class: "karte stapel" },
-    h("h3", { style: "margin:0;font-size:15px" }, "Ergebnis (wie L170 in R55…R65)"),
-    h("div", { class: "rgitter" }, e.rParameter().map(([n, v]) => h("span", null, `${n} = ${Fmt.zahl(v)}`))),
+    h("h3", { style: "margin:0;font-size:15px" }, "Ergebnis"),
     h("p", { class: ok ? "ok-text" : "fehler-text-fett" },
       `Kreisprüfung (3 Nachkommastellen): ΔR1 ${d1.toFixed(4)} · ΔR2 ${d2.toFixed(4)} ${ok ? "✓" : "✗"}`),
-    h("p", { class: "klein" }, `Kreisrichtung: ${e.gKreis}  ·  Seite R36 = ${e.eingabe.seite}`));
+    h("p", { class: "klein" }, `Kreisrichtung: ${e.gKreis}`));
 }
 
 /**
- * Assistent wie Zyklus L170: Werte aus der Zeichnung eingeben, Tangentenpunkte und I/K werden berechnet.
+ * Assistent: Werte aus der Zeichnung eingeben, Tangentenpunkte und I/K werden berechnet.
  * Mit „Schritt für Schritt“ wird jeder Wert einzeln abgefragt – wie der Dialog an der Steuerung.
  */
 function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
@@ -1152,7 +1129,7 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
     chipAlle.setAttribute("aria-pressed", String(!schrittModus));
     if (schrittLaeuft()) {
       const f = FELDER[schritt];
-      const feld = zahlFeld(schritt, `${f.r} =`);
+      const feld = zahlFeld(schritt, "Wert");
       const zurueck = h("button", { class: "knopf", type: "button", disabled: schritt === 0 }, "Zurück");
       zurueck.addEventListener("click", () => { if (schritt > 0) { schritt--; baueEingaben(true); } });
       weiterKnopf = h("button", { class: "knopf voll", type: "button" }, schritt === FELDER.length - 1 ? "Berechnen" : "Weiter");
@@ -1161,12 +1138,12 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
       felder[0].input.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); weiter(); } });
       eingabeBereich.replaceChildren(
         h("p", { class: "klein" }, `Schritt ${schritt + 1} von ${FELDER.length}`),
-        h("p", { class: "schritt-titel" }, `${f.titel} (${f.r})`),
+        h("p", { class: "schritt-titel" }, f.titel),
         h("p", null, f.hilfe),
         feld,
         h("div", { class: "reihe" }, zurueck, weiterKnopf));
     } else {
-      const teile = FELDER.map((f, i) => zahlFeld(i, `${f.titel} (${f.r})`));
+      const teile = FELDER.map((f, i) => zahlFeld(i, f.titel));
       if (schrittModus) {
         teile.push(h("button", { class: "text-knopf", type: "button",
           onclick: () => { schritt = 0; baueEingaben(true); } }, "Nochmal Schritt für Schritt"));
@@ -1200,11 +1177,7 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
       if (fehler != null) teile.push(h("div", { class: "karte fehler" }, fehler));
       if (ergebnis) {
         const block = NcProgramm.ncBlock(ergebnis);
-        teile.push(ergebnisKarte(ergebnis), codeKarte("NC-Sätze mit festen Werten", block));
-        if (ergebnis.ohneKreis1 || ergebnis.ohneKreis2) {
-          teile.push(h("p", { class: "klein" },
-            "Hinweis: L170 rechnet nur mit Radien größer 0. Für eine scharfe Ecke die Sätze mit festen Werten nehmen."));
-        } else teile.push(codeKarte("Oder an der Maschine mit L170", NcProgramm.l170Aufruf(ergebnis.eingabe)));
+        teile.push(ergebnisKarte(ergebnis), codeKarte("NC-Sätze", block));
         teile.push(h("button", { class: "knopf voll", type: "button", onclick: () => onUebernehmen(ergebnis) }, uebernehmenText));
       }
     }
@@ -1379,7 +1352,7 @@ el("tab-assistent").append(kantenEditor({
 function zeigeTab(name) {
   el("tab-code").hidden = name !== "code";
   el("tab-assistent").hidden = name !== "assistent";
-  el("titel").textContent = name === "code" ? "NC Kreis – Code" : "NC Kreis – Assistent L170";
+  el("titel").textContent = name === "code" ? "NC Kreis – Code" : "NC Kreis – Assistent";
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   window.scrollTo(0, 0);
 }
