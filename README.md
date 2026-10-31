@@ -26,7 +26,7 @@ Neue Versionen lädt die App im Hintergrund – sie sind beim nächsten Öffnen 
    (Ø, Z Ecke, Z Planfläche, Winkel, beide Radien). Nach Kontrolle mit der Zeichnung werden
    X/Z/I/K in den Sätzen ersetzt, auch das Z des Anfahrsatzes. „Rückgängig“ ist möglich.
 
-## Tab „Zeichnung“
+## Tab „Konturformen“
 Zuerst die Form antippen. Jede Form gibt es zweimal: **links** fährt in Z−, **rechts** fährt in Z+
 (G02/G03 steht auf der Kachel). Die Vorgaben kommen aus echten Studer-Programmen:
 
@@ -45,7 +45,7 @@ Maß gemeint ist. Ergebnis als fertige NC-Sätze mit Kreisprüfung.
 Die **±**-Taste neben jedem Feld dreht das Vorzeichen (die iPhone-Zahlentastatur hat kein Minus).
 - Fasen: Länge in Z, dazu ein Fasenwinkel zur Z-Achse (meist 45°, manchmal 30°).
 - Auslauf: Die letzte Linie (Fase oder Zylinder) läuft um diesen Wert über Z Ende hinaus.
-- „‹ Alle Formen“ oder nochmal auf „Zeichnung“ tippen führt zurück zur Auswahl.
+- „‹ Alle Formen“ oder nochmal auf „Konturformen“ tippen führt zurück zur Auswahl.
 
 „Berechnen“ im Tab „Code“ erkennt nur die Kante (Kreis – Gerade – Kreis).
 
