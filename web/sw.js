@@ -21,7 +21,8 @@ self.addEventListener("fetch", ev => {
   ev.respondWith(
     caches.open(SPEICHER).then(async c => {
       const alt = await c.match(ev.request, { ignoreSearch: true });
-      const neu = fetch(ev.request)
+      // no-cache: immer beim Server nachfragen, sonst kommt aus dem Browser-Cache noch die alte Seite
+      const neu = fetch(ev.request, { cache: "no-cache" })
         .then(antwort => { if (antwort.ok) c.put(ev.request, antwort.clone()); return antwort; })
         .catch(() => alt);
       if (alt) { ev.waitUntil(neu); return alt; }

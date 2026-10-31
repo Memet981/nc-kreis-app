@@ -655,7 +655,15 @@ class NcProgramm {
       // 9L9 / 9|9 -> 919
       t = t.replace(/(?<=\d)[L|](?=\d)/g, "1");
       t = t.replace(/-\s+(\d)/g, "-$1");
-      return t.replace(/\s{2,}/g, " ").trim();
+      t = t.replace(/\s{2,}/g, " ").trim();
+      // I als 1, l oder | gelesen: "G03 X36.75 Z-9. 10. K0.7" -> "G03 X36.75 Z-9. I0. K0.7"
+      // Nur im Kreissatz ohne I, und nicht am Zeilenanfang (dort steht eher eine Satznummer ohne N).
+      const w = NcProgramm.woerter(t);
+      if (!w.some(x => x.adresse === "I") &&
+        w.some(x => x.adresse === "K" || (x.adresse === "G" && [2, 3].includes(Math.trunc(x.zahl))))) {
+        t = t.replace(/(?<=\s)[1L|](-?(?:\d+\.?\d*|\.\d+))(?=\s|$)/, "I$1");
+      }
+      return t;
     }).join("\n").trim();
   }
 

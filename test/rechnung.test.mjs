@@ -103,6 +103,20 @@ test("Lesefehler werden bereinigt", () => {
   assert.equal(NcProgramm.ocrBereinigen("X87.9L9"), "X87.919");
 });
 
+test("I als 1, l oder | gelesen", () => {
+  const ocr = NcProgramm.ocrBereinigen;
+  assert.equal(ocr("N180 G03 G64 X36.75 Z-9. 10. K0.7"), "N180 G03 G64 X36.75 Z-9. I0. K0.7");
+  assert.equal(ocr("N140 G02 X87.919 Z-3.828 1-2 K0"), "N140 G02 X87.919 Z-3.828 I-2 K0");
+  assert.equal(ocr("N160 G02 X84.891 Z0 l-0,985 K-0.174"), "N160 G02 X84.891 Z0 I-0.985 K-0.174");
+  assert.equal(ocr("N160 G02 X84.891 Z0 |-0.985 K-0.174"), "N160 G02 X84.891 Z0 I-0.985 K-0.174");
+  // Kein Kreissatz, schon ein I da, oder Zahl am Zeilenanfang: nichts ändern
+  assert.equal(ocr("N120 G01 X42.8 10."), "N120 G01 X42.8 10.");
+  assert.equal(ocr("G03 X36.75 Z-9 I0 K0.7 10"), "G03 X36.75 Z-9 I0 K0.7 10");
+  assert.equal(ocr("180 G03 X36.75 Z-9 K0.7"), "180 G03 X36.75 Z-9 K0.7");
+  const p = new NcProgramm(zeilen(ocr("G01 X38.15 Z-9.7\nG03 X36.75 Z-9. 1-0.7 K0")));
+  assert.equal(p.kreise[0].i, -0.7);
+});
+
 test("R-Parameter und L170-Aufruf", () => {
   const ein = new KantenEingabe(87.98, -4.0, 0.0, 10.0, 2.0, 1.0);
   const aufruf = NcProgramm.l170Aufruf(ein);
