@@ -27,9 +27,27 @@ Neue Versionen lädt die App im Hintergrund – sie sind beim nächsten Öffnen 
    X/Z/I/K in den Sätzen ersetzt, auch das Z des Anfahrsatzes. „Rückgängig“ ist möglich.
 
 ## Tab „Zeichnung“
-Werte aus der Zeichnung eingeben. Beim Antippen eines Feldes zeigt die Grafik, welches
+Zuerst die Form antippen. Jede Form gibt es zweimal: **links** fährt in Z−, **rechts** fährt in Z+
+(G02/G03 steht auf der Kachel). Die Vorgaben kommen aus echten Studer-Programmen:
+
+| Form | Kontur | Vorgabe aus |
+|---|---|---|
+| Kante | Zylinder – Radius – Schräge – Radius – Planfläche | Beispiel 87.98, %6357 |
+| Hohlkehle | Fase – Schulter – Radius – Zylinder – Fase | %6251, %4214 |
+| Schräge Schulter | Schräge – Radius – Zylinder – Fase (90° = gerade Schulter) | %4016 |
+| Radius am Ende | Zylinder – Radius – Stirnseite | %4202 |
+| Flaschenhals | Schräge 1 – Radius 1 – Schräge 2 – Radius 2 – Zylinder – Fase | %6432 |
+| Ballig | großer Radius von Z Mitte bis Z Ende | %6305 |
+| Stufe | zwei Absätze mit Fase und Radius, dann Zylinder – Fase | %5636 |
+
+Dann die Werte aus der Zeichnung eingeben. Beim Antippen eines Feldes zeigt die Grafik, welches
 Maß gemeint ist. Ergebnis als fertige NC-Sätze mit Kreisprüfung.
 Die **±**-Taste neben jedem Feld dreht das Vorzeichen (die iPhone-Zahlentastatur hat kein Minus).
+- Fasen: Länge in Z, dazu ein Fasenwinkel zur Z-Achse (meist 45°, manchmal 30°).
+- Auslauf: Die letzte Linie (Fase oder Zylinder) läuft um diesen Wert über Z Ende hinaus.
+- „‹ Alle Formen“ oder nochmal auf „Zeichnung“ tippen führt zurück zur Auswahl.
+
+„Berechnen“ im Tab „Code“ erkennt nur die Kante (Kreis – Gerade – Kreis).
 
 ## Rechnung
 - I = Radius (nicht Durchmesser), K relativ zum Kreisanfang, X im Durchmesser.

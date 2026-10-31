@@ -7,8 +7,8 @@ import vm from "node:vm";
 
 const html = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
 const skript = html.match(/<script id="rechnung">([\s\S]*?)<\/script>/)[1];
-const { Kante, KantenEingabe, NcProgramm } = vm.runInNewContext(
-  skript + "\n;({ Kante, KantenEingabe, NcProgramm })", {});
+const { Kante, KantenEingabe, NcProgramm, Kontur, P } = vm.runInNewContext(
+  skript + "\n;({ Kante, KantenEingabe, NcProgramm, Kontur, P })", {});
 
 const zeilen = text => text.split("\n");
 const nah = (soll, ist, toleranz) => assert.ok(Math.abs(soll - ist) <= toleranz, `${ist} ist nicht ${soll} ± ${toleranz}`);
@@ -154,4 +154,90 @@ test("R-Parameter im Code", () => {
   assert.equal(p.rWerte.get(10), 87.98);
   assert.equal(p.fahrsaetze[0].ende.x, 87.98);
   assert.equal(p.fahrsaetze[0].ende.z, -4);
+});
+
+// ---------- Weitere Formen: Werte aus echten Studer-Programmen ----------
+
+const satzListe = (...s) => s.join("\n");
+const kontur = (form, werte, seite) => Kontur.berechne(Kontur[form](werte, seite));
+
+test("Kante links ergibt %6357", () => {
+  const e = Kante.berechne(new KantenEingabe(32.19, -27.78, -28.88, 45, 1.05, 0));
+  assert.equal(NcProgramm.ncBlock(e), satzListe("G01 X32.19 Z-27.345", "G03 X31.575 Z-28.088 I-1.05 K0", "G01 X29.99 Z-28.88"));
+});
+
+test("Hohlkehle rechts ergibt %6251", () => {
+  const e = kontur("hohlkehle", { dS: 90.75, zP: -9.7, R: 0.7, dZ: 86.35, zE: 0, fS: 0.5, fE: 0.4, fw: 45, a: 0.2 }, 1);
+  assert.equal(Kontur.ncBlock(e), satzListe(
+    "G01 X90.75 Z-10.2", "G01 X89.75 Z-9.7", "G01 X87.75 Z-9.7", "G03 X86.35 Z-9 I0 K0.7",
+    "G01 X86.35 Z-0.4", "G01 X85.15 Z0.2"));
+});
+
+test("Hohlkehle links mit 30°-Fase ergibt %4214", () => {
+  const e = kontur("hohlkehle", { dS: 70, zP: -20.9, R: 0.5, dZ: 66.7, zE: -28.7, fS: 0, fE: 0.6, fw: 30, a: 0 }, -1);
+  assert.equal(Kontur.ncBlock(e), satzListe(
+    "G01 X70 Z-20.9", "G01 X67.7 Z-20.9", "G02 X66.7 Z-21.4 I0 K-0.5", "G01 X66.7 Z-28.1", "G01 X66.007 Z-28.7"));
+});
+
+test("Stufe ergibt %5636", () => {
+  const e = kontur("stufe", { dS: 67.075, fS: 0.5, zP1: -20.2, R1: 0.1, dM: 64, fM: 0.5, zP2: -3.125, R2: 0.6,
+    dZ: 58.775, zE: 0, fE: 0.5, fw: 45, a: 0.3 }, 1);
+  assert.equal(Kontur.ncBlock(e), satzListe(
+    "G01 X67.075 Z-20.7", "G01 X66.075 Z-20.2", "G01 X64.2 Z-20.2", "G03 X64 Z-20.1 I0 K0.1",
+    "G01 X64 Z-3.625", "G01 X63 Z-3.125", "G01 X59.975 Z-3.125", "G03 X58.775 Z-2.525 I0 K0.6",
+    "G01 X58.775 Z-0.5", "G01 X57.175 Z0.3"));
+});
+
+test("Ballig rechts und links ergibt %6305", () => {
+  const werte = { dM: 45, zM: -16.125, R: 398 };
+  assert.equal(Kontur.ncBlock(kontur("ballig", { ...werte, zE: 3 }, 1)), "G01 X45 Z-16.125\nG02 X44.08 Z3 I-398 K0");
+  assert.equal(Kontur.ncBlock(kontur("ballig", { ...werte, zE: -35.25 }, -1)), "G01 X45 Z-16.125\nG03 X44.08 Z-35.25 I-398 K0");
+});
+
+test("Radius am Ende ergibt %4202", () => {
+  assert.equal(Kontur.ncBlock(kontur("radiusAmEnde", { dZ: 11.97, zS: 0, R: 0.8 }, 1)), "G01 X11.97 Z-0.8\nG02 X10.37 Z0 I-0.8 K0");
+  assert.equal(Kontur.ncBlock(kontur("radiusAmEnde", { dZ: 11.97, zS: -20, R: 0.8 }, -1)), "G01 X11.97 Z-19.2\nG03 X10.37 Z-20 I-0.8 K0");
+});
+
+test("Schräge Schulter ergibt %4016", () => {
+  // Winkel und Ecke aus den Programmsätzen zurückgerechnet
+  const e = kontur("schraegeSchulter", { dS: 26.935, wS: 75.1275, zU: -1.9609, R: 0.3, dZ: 17.6, zE: 0, fE: 0.3, fw: 45, a: 0.2 }, 1);
+  const [k] = e.kreise;
+  assert.equal(k.art, "G03");
+  nah(18.045, k.start.x, 0.002); nah(-2.02, k.start.z, 0.002);
+  nah(-1.731, k.ende.z, 0.002); nah(17.6, k.ende.x, 0.0005);
+  assert.equal(Kontur.ncBlock(e).split("\n").at(-1), "G01 X16.6 Z0.2");
+});
+
+test("Flaschenhals ergibt %6432", () => {
+  const werte = { dG: 53.92, zO: -103.28, w1: 40.882, R1: 25.4, zM: -91.075, w2: 5.897, R2: 25.4, dZ: 19.19,
+    zE: 0, fE: 1.7, fw: 45, a: 0.3 };
+  const e = kontur("flaschenhals", werte, 1);
+  const [k1, k2] = e.kreise;
+  assert.deepEqual([k1.art, k2.art], ["G03", "G03"]);
+  nah(31.144, k1.ende.x, 0.01); nah(-83.113, k1.ende.z, 0.01); nah(19.204, k1.i, 0.01); nah(16.624, k1.k, 0.01);
+  nah(19.19, k2.ende.x, 0.0005); nah(-23.942, k2.ende.z, 0.01); nah(25.266, k2.i, 0.01); nah(2.61, k2.k, 0.01);
+  assert.ok(Kontur.radiusAbweichungGerundet(e).every(d => d < 0.001));
+  // gespiegelt: gleiche Kreise, G02
+  const l = kontur("flaschenhals", { ...werte, zO: -6.72, zM: -18.925, zE: -110 }, -1);
+  assert.equal(l.kreise.map(k => k.art).join(), "G02,G02");
+  nah(k1.i, l.kreise[0].i, 1e-9); nah(-k1.k, l.kreise[0].k, 1e-9);
+});
+
+test("verrunde rechnet wie Kante.berechne", () => {
+  const k = Kante.berechne(new KantenEingabe(87.98, -4, 0, 10, 2, 1));
+  const v = Kontur.verrunde({ ecken: [new P(-10, 43.99), k.ecke1, k.ecke2, new P(0, k.ecke2.r - 5)], radien: [0, 2, 1, 0] });
+  const [b1, b2] = v.kreise;
+  for (const [ist, soll] of [[b1.start, k.start], [b1.ende, k.ende1], [b2.start, k.start2], [b2.ende, k.ende2]]) {
+    nah(soll.z, ist.z, 1e-9); nah(soll.r, ist.r, 1e-9);
+  }
+  nah(k.i1, b1.i, 1e-9); nah(k.k1, b1.k, 1e-9); nah(k.i2, b2.i, 1e-9); nah(k.k2, b2.k, 1e-9);
+  assert.deepEqual([b1.art, b2.art], ["G02", "G02"]);
+});
+
+test("Fehler bei falschen Maßen", () => {
+  const hk = { dS: 90.75, zP: -9.7, R: 0.7, dZ: 86.35, zE: 0, fS: 0.5, fE: 0.4, fw: 45, a: 0.2 };
+  assert.throws(() => kontur("hohlkehle", { ...hk, R: 20 }, 1), /Radius Hohlkehle zu groß/);
+  assert.throws(() => kontur("hohlkehle", hk, -1), /Bei „links“ muss Z Ende kleiner als Z Planfläche sein/);
+  assert.throws(() => kontur("ballig", { dM: 45, zM: 0, R: 5, zE: 10 }, 1), /Radius ballig ist kleiner/);
 });

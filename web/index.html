@@ -126,6 +126,19 @@ input.zahl.ungueltig { border-color: var(--fehler); box-shadow: 0 0 0 1px var(--
 .grafik canvas { display: block; width: 100%; height: 100%; }
 .grafik .hervor-text { position: absolute; top: 8px; left: 10px; color: var(--akzent); font-size: 14px; font-weight: 600; pointer-events: none; }
 .grafik .tipp { position: absolute; right: 8px; bottom: 5px; font-size: 11px; color: var(--text2); opacity: .8; pointer-events: none; }
+.kacheln { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kachel {
+  appearance: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px;
+  border-radius: 12px; border: 1px solid var(--rand); background: var(--flaeche); color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.kachel:active { filter: brightness(.93); }
+.kachel svg { display: block; width: 100%; height: auto; }
+.kachel .radius { stroke: var(--akzent); }
+.kachel span { font-size: 13px; font-weight: 600; color: var(--text2); }
+.form-kopf { display: flex; align-items: center; gap: 8px; }
+.form-kopf h2 { flex: 1; margin: 0; font-size: 19px; font-weight: 600; }
+.schild { font-size: 13px; font-weight: 600; background: var(--chip); padding: 3px 10px; border-radius: 12px; }
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
   display: flex; justify-content: center;
@@ -195,7 +208,12 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
     <div id="programm-hinweise" class="stapel"></div>
   </section>
 
-  <section id="tab-zeichnung" hidden></section>
+  <section id="tab-zeichnung" hidden>
+    <div id="formen-auswahl" class="stapel">
+      <p class="klein">Form antippen. Links fährt in Z−, rechts in Z+.</p>
+    </div>
+    <div id="formen-editor" hidden></div>
+  </section>
 </main>
 
 <nav class="tabs" role="tablist">
@@ -283,6 +301,15 @@ class GeometrieFehler extends Error {
   constructor(msg) { super(msg); this.name = "GeometrieFehler"; }
 }
 
+/** ΔR eines Kreises mit den gerundeten Werten, so wie die Steuerung sie sieht (3 Nachkommastellen). */
+function abweichungGerundet(s, e, i, k) {
+  const r3 = v => Fmt.rund(v);
+  const sz = r3(s.z), sr = r3(s.x) / 2;
+  const ez = r3(e.z), er = r3(e.x) / 2;
+  const cz = sz + r3(k), cr = sr + r3(i);
+  return Math.abs(Math.hypot(sz - cz, sr - cr) - Math.hypot(ez - cz, er - cr));
+}
+
 const Kante = {
   berechne(e) {
     if (e.durchmesser <= 0) throw new GeometrieFehler("Ø muss größer als 0 sein.");
@@ -320,14 +347,7 @@ const Kante = {
 
   /** Gerundete Werte so prüfen, wie die Steuerung sie sieht (3 Nachkommastellen). */
   radiusAbweichungGerundet(erg) {
-    const r3 = v => Fmt.rund(v);
-    const dr = (s, e, i, k) => {
-      const sz = r3(s.z), sr = r3(s.x) / 2;
-      const ez = r3(e.z), er = r3(e.x) / 2;
-      const cz = sz + r3(k), cr = sr + r3(i);
-      return Math.abs(Math.hypot(sz - cz, sr - cr) - Math.hypot(ez - cz, er - cr));
-    };
-    return [dr(erg.start, erg.ende1, erg.i1, erg.k1), dr(erg.start2, erg.ende2, erg.i2, erg.k2)];
+    return [abweichungGerundet(erg.start, erg.ende1, erg.i1, erg.k1), abweichungGerundet(erg.start2, erg.ende2, erg.i2, erg.k2)];
   },
 
   /** Winkel aus zwei Punkten einer Schräge (zur Z-Achse, in Grad). */
@@ -683,6 +703,280 @@ class NcProgramm {
     return zeilen.join("\n");
   }
 }
+
+// ---------- Weitere Formen: Hohlkehle, Schräge Schulter, Radius am Ende, Flaschenhals, Ballig, Stufe ----------
+// s = Seite: +1 „rechts“ (fährt in Z+), -1 „links“ (fährt in Z−). Fasen: Länge in Z, Fasenwinkel zur Z-Achse.
+
+/**
+ * Startpunkt und Sätze in Fahrrichtung. Satz: { art: "G01" | "G02" | "G03", start, ende, mitte, i, k, ecke },
+ * ecke = Index der scharfen Ecke, an der der Kreis sitzt.
+ */
+class KonturErgebnis {
+  constructor(start, saetze, ecken) {
+    this.start = start;
+    this.saetze = saetze;
+    this.ecken = ecken;   // scharfe Kontur aus der Zeichnung
+  }
+  get kreise() { return this.saetze.filter(s => s.art !== "G01"); }
+}
+
+const seiteText = s => (s > 0 ? "rechts" : "links");
+function pruefe(bedingung, text) { if (!bedingung) throw new GeometrieFehler(text); }
+/** b muss in Fahrrichtung hinter a liegen: bei „rechts“ größeres Z, bei „links“ kleineres. */
+function pruefeReihenfolge(s, a, b, nameA, nameB) {
+  pruefe(s * (b - a) > 0, `Bei „${seiteText(s)}“ muss ${nameB} ${s > 0 ? "größer" : "kleiner"} als ${nameA} sein.`);
+}
+function pruefeWinkel(w, name, bis90 = false) {
+  pruefe(w > 0 && (bis90 ? w <= 90 : w < 90), `${name} muss zwischen 0 und 90° liegen.`);
+}
+function pruefeNichtNegativ(werte) {
+  pruefe(werte.every(v => v >= 0), "Radien, Fasen und Auslauf dürfen nicht negativ sein (0 = keine).");
+}
+/** tan(Fasenwinkel); der Winkel wird nur geprüft, wenn es eine Fase gibt. */
+function fasenTangens(fw, ...fasen) {
+  if (fasen.every(f => f === 0)) return 1;
+  pruefeWinkel(fw, "Fasenwinkel");
+  return Math.tan(zuRad(fw));
+}
+
+/** Sammelt die scharfen Ecken mit Radius (0 = scharf) und Namen für Fehlermeldungen. */
+function konturBauer() {
+  const ecken = [], radien = [], namen = [];
+  return { ecken, radien, namen, dazu(p, radius = 0, name = null) { ecken.push(p); radien.push(radius); namen.push(name); return p; } };
+}
+
+/** Oben auf der Schulter beginnen, mit Fase bis zur Planfläche. */
+function schulterAnfang(k, s, rS, zP, fS, tw) {
+  if (fS === 0) { const p = k.dazu(new P(zP, rS)); return { oben: p, unten: p, fase: null }; }
+  const oben = k.dazu(new P(zP - s * fS, rS));
+  const unten = k.dazu(new P(zP, rS - fS * tw));
+  return { oben, unten, fase: [oben, unten] };
+}
+
+/** Zylinder bis Z Ende, Fase am Ende; die letzte Linie läuft um den Auslauf über Z Ende hinaus. */
+function zylinderEnde(k, s, rZ, zE, fE, tw, a) {
+  if (fE === 0) {
+    const zEnde = new P(zE, rZ);
+    const ende = k.dazu(new P(zE + s * a, rZ));
+    return { zylinderEnde: zEnde, zEnde, fase: null, auslauf: [zEnde, ende] };
+  }
+  const anfang = k.dazu(new P(zE - s * fE, rZ));
+  const zEnde = new P(zE, rZ - fE * tw);
+  const ende = k.dazu(new P(zE + s * a, rZ - (fE + a) * tw));
+  pruefe(ende.r > 0, "Fase Ende läuft unter die Drehmitte.");
+  return { zylinderEnde: anfang, zEnde, fase: [anfang, zEnde], auslauf: [zEnde, ende] };
+}
+
+/** Hervorhebungen, die bei allen Formen mit Zylinder, Fase Ende und Auslauf gleich sind. */
+function endeMarken(ecke, ende, fasen) {
+  return {
+    dZ: { linien: [[ecke, ende.zylinderEnde]] },
+    zE: { punkt: ende.zEnde },
+    fE: ende.fase ? { linien: [ende.fase] } : { punkt: ende.zEnde },
+    fw: { linien: [...fasen, ende.fase].filter(Boolean) },
+    a: { linien: [ende.auslauf] },
+  };
+}
+
+const Kontur = {
+  /**
+   * Scharfe Kontur (Ecken in Fahrrichtung) mit dem Radius je Ecke verrunden: Tangentenpunkte, Mittelpunkt, I/K.
+   * Links herum ergibt G03, rechts herum G02 (Z nach rechts, X nach oben).
+   */
+  verrunde({ ecken, radien = [], namen = [] }) {
+    const n = ecken.length;
+    const linien = [];
+    for (let j = 0; j + 1 < n; j++) {
+      const dz = ecken[j + 1].z - ecken[j].z, dr = ecken[j + 1].r - ecken[j].r;
+      const l = Math.hypot(dz, dr);
+      if (l < 1e-9) throw new GeometrieFehler("Zwei Ecken der Kontur liegen aufeinander – Maße prüfen.");
+      linien.push({ dz: dz / l, dr: dr / l, l });
+    }
+    const radius = j => (j > 0 && j < n - 1 && radien[j] > 0 ? radien[j] : 0);
+    const t = ecken.map((_, j) => {
+      if (radius(j) === 0) return 0;
+      const a = linien[j - 1], b = linien[j];
+      const phi = Math.acos(Math.min(1, Math.max(-1, a.dz * b.dz + a.dr * b.dr)));
+      return phi < 1e-9 ? 0 : radius(j) * Math.tan(phi / 2);   // gerade durch: kein Kreis
+    });
+    linien.forEach((li, j) => {
+      if (t[j] + t[j + 1] <= li.l + 1e-9) return;
+      const welche = [j, j + 1].filter(k => t[k] > 0).map(k => namen[k] || "Radius").join(" und ");
+      throw new GeometrieFehler(`${welche} zu groß: Die Linie ist ${li.l.toFixed(3)} lang, gebraucht ${(t[j] + t[j + 1]).toFixed(3)}.`);
+    });
+
+    const saetze = [];
+    let pos = ecken[0];
+    const linie = bis => {
+      if (Math.hypot(bis.z - pos.z, bis.r - pos.r) >= 0.0005) saetze.push({ art: "G01", start: pos, ende: bis });
+      pos = bis;
+    };
+    for (let j = 1; j < n; j++) {
+      if (t[j] === 0) { linie(ecken[j]); continue; }
+      const a = linien[j - 1], b = linien[j], e = ecken[j], R = radius(j);
+      const anfang = new P(e.z - a.dz * t[j], e.r - a.dr * t[j]);
+      const ende = new P(e.z + b.dz * t[j], e.r + b.dr * t[j]);
+      const linksHerum = a.dz * b.dr - a.dr * b.dz > 0;
+      // Mittelpunkt: um R senkrecht zur Fahrrichtung, auf der Innenseite der Ecke
+      const mitte = linksHerum ? new P(anfang.z - a.dr * R, anfang.r + a.dz * R) : new P(anfang.z + a.dr * R, anfang.r - a.dz * R);
+      linie(anfang);
+      saetze.push({ art: linksHerum ? "G03" : "G02", start: anfang, ende, mitte, i: mitte.r - anfang.r, k: mitte.z - anfang.z, ecke: j });
+      pos = ende;
+    }
+    return new KonturErgebnis(ecken[0], saetze, ecken);
+  },
+
+  /** Plan einer Form → Ergebnis. Ballig bringt sein Ergebnis schon fertig mit. */
+  berechne(plan) { return plan.ergebnis || Kontur.verrunde(plan); },
+
+  ncBlock(erg) {
+    const f = Fmt.zahl;
+    return [`G01 X${f(erg.start.x)} Z${f(erg.start.z)}`, ...erg.saetze.map(s => s.art === "G01"
+      ? `G01 X${f(s.ende.x)} Z${f(s.ende.z)}`
+      : `${s.art} X${f(s.ende.x)} Z${f(s.ende.z)} I${f(s.i)} K${f(s.k)}`)].join("\n");
+  },
+
+  radiusAbweichungGerundet(erg) { return erg.kreise.map(s => abweichungGerundet(s.start, s.ende, s.i, s.k)); },
+
+  /** Fase – Schulter (Planfläche) – Hohlkehle – Zylinder – Fase. */
+  hohlkehle({ dS, zP, R, dZ, zE, fS, fE, fw, a }, s) {
+    pruefe(dZ > 0 && dS > dZ, "Ø Schulter muss größer als Ø Zylinder sein.");
+    pruefeNichtNegativ([R, fS, fE, a]);
+    pruefeReihenfolge(s, zP, zE, "Z Planfläche", "Z Ende");
+    const tw = fasenTangens(fw, fS, fE);
+    const rS = dS / 2, rZ = dZ / 2;
+    pruefe(fS * tw < rS - rZ, "Fase Schulter ist höher als die Schulter.");
+    pruefe(s * (zE - s * fE - zP) > 0, "Fase Ende ist länger als der Zylinder.");
+    const k = konturBauer();
+    const schulter = schulterAnfang(k, s, rS, zP, fS, tw);
+    const ecke = k.dazu(new P(zP, rZ), R, "Radius Hohlkehle");
+    const ende = zylinderEnde(k, s, rZ, zE, fE, tw, a);
+    return { ...k, marken: {
+      dS: { punkt: schulter.oben },
+      zP: { linien: [[schulter.unten, ecke]] },
+      R: { bogen: ecke },
+      fS: schulter.fase ? { linien: [schulter.fase] } : { punkt: schulter.oben },
+      ...endeMarken(ecke, ende, [schulter.fase]),
+    } };
+  },
+
+  /** Schräge Schulter – Radius – Zylinder – Fase. Winkel der Schräge zur Z-Achse, 90° = gerade Planfläche. */
+  schraegeSchulter({ dS, wS, zU, R, dZ, zE, fE, fw, a }, s) {
+    pruefe(dZ > 0 && dS > dZ, "Ø Schulter muss größer als Ø Zylinder sein.");
+    pruefeNichtNegativ([R, fE, a]);
+    pruefeWinkel(wS, "Winkel Schulter", true);
+    pruefeReihenfolge(s, zU, zE, "Z Ecke am Zylinder", "Z Ende");
+    const tw = fasenTangens(fw, fE);
+    const rS = dS / 2, rZ = dZ / 2;
+    pruefe(s * (zE - s * fE - zU) > 0, "Fase Ende ist länger als der Zylinder.");
+    const lz = wS >= 90 ? 0 : (rS - rZ) / Math.tan(zuRad(wS));
+    const k = konturBauer();
+    const oben = k.dazu(new P(zU - s * lz, rS));
+    const ecke = k.dazu(new P(zU, rZ), R, "Radius");
+    const ende = zylinderEnde(k, s, rZ, zE, fE, tw, a);
+    return { ...k, marken: {
+      dS: { punkt: oben },
+      wS: { linien: [[oben, ecke]] },
+      zU: { punkt: ecke },
+      R: { bogen: ecke },
+      ...endeMarken(ecke, ende, []),
+    } };
+  },
+
+  /** Zylinder – Radius – Stirnseite. */
+  radiusAmEnde({ dZ, zS, R }, s) {
+    pruefe(dZ > 0, "Ø Zylinder muss größer als 0 sein.");
+    pruefe(R > 0, "Radius muss größer als 0 sein.");
+    pruefe(R < dZ / 2, "Radius ist größer als der halbe Ø.");
+    const r = dZ / 2;
+    const k = konturBauer();
+    const anfang = k.dazu(new P(zS - s * R, r));
+    const ecke = k.dazu(new P(zS, r), R, "Radius");
+    const unten = k.dazu(new P(zS, r - R));
+    return { ...k, marken: { dZ: { linien: [[anfang, ecke]] }, zS: { linien: [[ecke, unten]] }, R: { bogen: ecke } } };
+  },
+
+  /** Ø groß – Schräge 1 – Radius 1 – Schräge 2 – Radius 2 – Zylinder – Fase. Winkel zur Z-Achse. */
+  flaschenhals({ dG, zO, w1, R1, zM, w2, R2, dZ, zE, fE, fw, a }, s) {
+    pruefe(dZ > 0 && dG > dZ, "Ø groß muss größer als Ø Zylinder sein.");
+    pruefeNichtNegativ([R1, R2, fE, a]);
+    pruefeWinkel(w1, "Winkel Schräge 1");
+    pruefeWinkel(w2, "Winkel Schräge 2");
+    pruefeReihenfolge(s, zO, zM, "Z Ecke oben", "Z Ecke Mitte");
+    const tw = fasenTangens(fw, fE);
+    const rG = dG / 2, rZ = dZ / 2;
+    const rM = rG - Math.abs(zM - zO) * Math.tan(zuRad(w1));
+    pruefe(rM > rZ, "Schräge 1 kommt unter Ø Zylinder – Winkel Schräge 1 oder Z Ecke Mitte prüfen.");
+    const zU = zM + s * (rM - rZ) / Math.tan(zuRad(w2));
+    pruefe(s * (zE - s * fE - zU) > 0,
+      `Z Ende (mit Fase) muss hinter der Ecke Schräge 2/Zylinder bei Z${Fmt.zahl(zU)} liegen.`);
+    const k = konturBauer();
+    const oben = k.dazu(new P(zO, rG));
+    const mitte = k.dazu(new P(zM, rM), R1, "Radius 1");
+    const unten = k.dazu(new P(zU, rZ), R2, "Radius 2");
+    const ende = zylinderEnde(k, s, rZ, zE, fE, tw, a);
+    return { ...k, marken: {
+      dG: { punkt: oben },
+      zO: { punkt: oben },
+      w1: { linien: [[oben, mitte]] },
+      R1: { bogen: mitte },
+      zM: { punkt: mitte },
+      w2: { linien: [[mitte, unten]] },
+      R2: { bogen: unten },
+      ...endeMarken(unten, ende, []),
+    } };
+  },
+
+  /** Ein großer Bogen von Z Mitte (größter Ø) bis Z Ende. */
+  ballig({ dM, zM, R, zE }, s) {
+    pruefe(dM > 0, "Ø Mitte muss größer als 0 sein.");
+    pruefe(R > 0, "Radius ballig muss größer als 0 sein.");
+    pruefeReihenfolge(s, zM, zE, "Z Mitte", "Z Ende");
+    const dz = Math.abs(zE - zM);
+    pruefe(dz < R, "Radius ballig ist kleiner als der Weg von Z Mitte bis Z Ende.");
+    const rM = dM / 2;
+    const rE = rM - R + Math.sqrt(R * R - dz * dz);
+    pruefe(rE > 0, "Der Bogen läuft unter die Drehmitte.");
+    const start = new P(zM, rM), ende = new P(zE, rE), mitte = new P(zM, rM - R);
+    const gerade = new P(zE, rM);
+    const ecken = [start, gerade];
+    const satz = { art: s > 0 ? "G02" : "G03", start, ende, mitte, i: -R, k: 0, ecke: 0 };
+    return { ecken, ergebnis: new KonturErgebnis(start, [satz], ecken), marken: {
+      dM: { linien: [[start, gerade]] }, zM: { punkt: start }, R: { bogen: start }, zE: { punkt: ende },
+    } };
+  },
+
+  /** Zwei Absätze hintereinander: zweimal Fase – Planfläche – Hohlkehle, dann Zylinder – Fase. */
+  stufe({ dS, fS, zP1, R1, dM, fM, zP2, R2, dZ, zE, fE, fw, a }, s) {
+    pruefe(dZ > 0 && dM > dZ && dS > dM, "Die Ø müssen von Schulter über Mitte zum Zylinder kleiner werden.");
+    pruefeNichtNegativ([R1, R2, fS, fM, fE, a]);
+    pruefeReihenfolge(s, zP1, zP2, "Z Planfläche 1", "Z Planfläche 2");
+    pruefeReihenfolge(s, zP2, zE, "Z Planfläche 2", "Z Ende");
+    const tw = fasenTangens(fw, fS, fM, fE);
+    const rS = dS / 2, rM = dM / 2, rZ = dZ / 2;
+    pruefe(fS * tw < rS - rM, "Fase Schulter ist höher als der erste Absatz.");
+    pruefe(fM * tw < rM - rZ, "Fase Absatz 2 ist höher als der zweite Absatz.");
+    pruefe(s * (zP2 - s * fM - zP1) > 0, "Fase Absatz 2 ist länger als der mittlere Zylinder.");
+    pruefe(s * (zE - s * fE - zP2) > 0, "Fase Ende ist länger als der Zylinder.");
+    const k = konturBauer();
+    const s1 = schulterAnfang(k, s, rS, zP1, fS, tw);
+    const ecke1 = k.dazu(new P(zP1, rM), R1, "Radius 1");
+    const s2 = schulterAnfang(k, s, rM, zP2, fM, tw);
+    const ecke2 = k.dazu(new P(zP2, rZ), R2, "Radius 2");
+    const ende = zylinderEnde(k, s, rZ, zE, fE, tw, a);
+    return { ...k, marken: {
+      dS: { punkt: s1.oben },
+      fS: s1.fase ? { linien: [s1.fase] } : { punkt: s1.oben },
+      zP1: { linien: [[s1.unten, ecke1]] },
+      R1: { bogen: ecke1 },
+      dM: { linien: [[ecke1, s2.oben]] },
+      fM: s2.fase ? { linien: [s2.fase] } : { punkt: s2.oben },
+      zP2: { linien: [[s2.unten, ecke2]] },
+      R2: { bogen: ecke2 },
+      ...endeMarken(ecke2, ende, [s1.fase, s2.fase]),
+    } };
+  },
+};
 </script>
 
 <!-- Oberfläche: wie ui/*.kt der Android-App, ohne Foto/Bild/Lens. -->
@@ -985,6 +1279,8 @@ const FELDER = [
 ];
 
 const BEISPIEL = new KantenEingabe(87.98, -4, 0, 10, 2, 1);
+const BEISPIEL_LINKS = new KantenEingabe(32.19, -27.78, -28.88, 45, 1.05, 0);   // %6357
+const kantenWerte = e => [e.durchmesser, e.zEcke, e.zPlan, e.winkel, e.radiusZylinder, e.radiusPlan];
 
 function bahnVon(e) {
   const cw = e.eingabe.seite > 0;
@@ -1051,10 +1347,170 @@ function ergebnisKarte(e) {
     h("p", { class: "klein" }, `Kreisrichtung: ${e.gKreis}`));
 }
 
-/** Kanten-Editor: Werte aus der Zeichnung eingeben, Tangentenpunkte und I/K werden berechnet. */
-function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
-  const start = vorschlag || BEISPIEL;
-  const werte = [start.durchmesser, start.zEcke, start.zPlan, start.winkel, start.radiusZylinder, start.radiusPlan].map(Fmt.zahl);
+function konturKarte(e) {
+  const d = Kontur.radiusAbweichungGerundet(e);
+  const ok = d.every(x => x <= NcProgramm.TOLERANZ);
+  return h("div", { class: "karte stapel" },
+    h("h3", { style: "margin:0;font-size:15px" }, "Ergebnis"),
+    d.length === 0 ? h("p", { class: "klein" }, "Kein Kreis – alle Radien sind 0.")
+      : h("p", { class: ok ? "ok-text" : "fehler-text-fett" },
+        `Kreisprüfung (3 Nachkommastellen): ${d.map((x, i) => `ΔR${i + 1} ${x.toFixed(4)}`).join(" · ")} ${ok ? "✓" : "✗"}`),
+    d.length ? h("p", { class: "klein" }, `Kreisrichtung: ${konturArten(e)}`) : null);
+}
+
+const konturArten = e => [...new Set(e.kreise.map(k => k.art))].join("/");
+const ohneKlammer = titel => titel.replace(/\s*\(.*\)$/, "").replace(/, Länge in Z$/, "");
+
+/**
+ * Eine Form für den Editor. plan(zahlen) → Eingabe für rechne (und für Zeichnung/Hervorhebung, auch wenn rechne
+ * scheitert), rechne(plan) → Ergebnis; beide werfen GeometrieFehler bei unpassenden Maßen.
+ */
+function kantenForm(s) {
+  const start = s > 0 ? BEISPIEL : BEISPIEL_LINKS;
+  return {
+    gruppe: "Kante", seite: s,
+    felder: FELDER.map((f, i) => ({ titel: f.titel, wert: kantenWerte(start)[i] })),
+    plan: zahlen => new KantenEingabe(...zahlen),
+    rechne: e => {
+      pruefe(e.seite === s, `Bei „${seiteText(s)}“ muss Z Planfläche ${s > 0 ? "größer" : "kleiner"} als Z scharfe Ecke sein.`);
+      return Kante.berechne(e);
+    },
+    zeichnung: zeichnungVon,
+    hervor: hervorhebung,
+    bahn: bahnVon,
+    punkte: e => [
+      gPunkt(e.start, `Z${Fmt.zahl(e.start.z)}`),
+      gPunkt(e.ende1, `X${Fmt.zahl(e.ende1.x)} Z${Fmt.zahl(e.ende1.z)}`),
+      gPunkt(e.start2, `X${Fmt.zahl(e.start2.x)} Z${Fmt.zahl(e.start2.z)}`),
+      gPunkt(e.ende2, `X${Fmt.zahl(e.ende2.x)}`),
+    ],
+    mitten: e => [e.mitte1, e.mitte2],
+    nc: e => NcProgramm.ncBlock(e),
+    karte: ergebnisKarte,
+    arten: e => e.gKreis,
+  };
+}
+
+/** Form aus Kontur[bau]. felder: [Schlüssel, Titel, Vorgabe rechts, Vorgabe links]. */
+function konturForm(gruppe, bau, felder, s) {
+  return {
+    gruppe, seite: s,
+    felder: felder.map(([key, titel, rechts, links]) => ({ key, titel, wert: s > 0 ? rechts : links })),
+    plan: zahlen => Kontur[bau](Object.fromEntries(felder.map(([key], i) => [key, zahlen[i]])), s),
+    rechne: plan => Kontur.berechne(plan),
+    zeichnung: plan => plan.ecken,
+    hervor: (i, plan, erg) => {
+      const m = i >= 0 && plan.marken[felder[i][0]];
+      if (!m) return null;
+      let bogen = null, punkt = m.punkt || null;
+      if (m.bogen) {
+        const j = plan.ecken.indexOf(m.bogen);
+        const k = erg && erg.kreise.find(st => st.ecke === j);
+        if (k) bogen = gSeg(k.start, k.ende, k.mitte, k.art === "G02");
+        else punkt = m.bogen;
+      }
+      return { linien: m.linien || [], bogen, punkt, text: ohneKlammer(felder[i][1]) };
+    },
+    bahn: e => e.saetze.map(st => gSeg(st.start, st.ende, st.mitte || null, st.art === "G02")),
+    punkte: e => [e.start, ...e.saetze.map(st => st.ende)].map(p => gPunkt(p, `X${Fmt.zahl(p.x)} Z${Fmt.zahl(p.z)}`)),
+    mitten: e => {
+      // Sehr große Radien (ballig) nicht, sonst wird die Grafik winzig
+      const alle = [e.start, ...e.saetze.map(st => st.ende)];
+      const spanne = Math.max(...alle.map(p => p.z)) - Math.min(...alle.map(p => p.z)) +
+        Math.max(...alle.map(p => p.r)) - Math.min(...alle.map(p => p.r));
+      return e.kreise.filter(k => Math.hypot(k.i, k.k) <= spanne).map(k => k.mitte);
+    },
+    nc: e => Kontur.ncBlock(e),
+    karte: konturKarte,
+    arten: konturArten,
+  };
+}
+
+const FASEN = [
+  ["fw", "Fasenwinkel zur Z-Achse in °", 45, 45],
+  ["a", "Auslauf über Z Ende", 0.2, 0.2],
+];
+
+/** Formen für die Auswahlseite; Vorgaben aus den Studer-Programmen. bild: Linie und Radien (SVG, 130×90). */
+const FORM_GRUPPEN = [
+  { name: "Kante", bild: ["M8,22 H68 Q76,22 82.7,26.3 L104.1,40.2 Q110,44 110,51 V86",
+    "M68,22 Q76,22 82.7,26.3 M104.1,40.2 Q110,44 110,51"] },
+  { name: "Hohlkehle", bau: "hohlkehle", felder: [   // %6251, %4214
+    ["dS", "Ø Schulter", 90.75, 71],
+    ["zP", "Z Planfläche", -9.7, -20.9],
+    ["R", "Radius Hohlkehle (0 = scharfe Ecke)", 0.7, 0.5],
+    ["dZ", "Ø Zylinder", 86.35, 66.7],
+    ["zE", "Z Ende Zylinder", 0, -28.7],
+    ["fS", "Fase Schulter, Länge in Z (0 = keine)", 0.5, 0.5],
+    ["fE", "Fase Ende, Länge in Z (0 = keine)", 0.4, 0.6],
+    ...FASEN,
+  ], bild: ["M6,14 H40 L46,20 V40 Q46,50 56,50 H108 L114,56 V86", "M46,40 Q46,50 56,50"] },
+  { name: "Schräge Schulter", bau: "schraegeSchulter", felder: [   // %4016
+    ["dS", "Ø Schulter", 26.935, 26.935],
+    ["wS", "Winkel Schräge zur Z-Achse in ° (90 = gerade)", 75, 75],
+    ["zU", "Z Ecke Schräge/Zylinder", -1.961, -18.039],
+    ["R", "Radius (0 = scharfe Ecke)", 0.3, 0.3],
+    ["dZ", "Ø Zylinder", 17.6, 17.6],
+    ["zE", "Z Ende Zylinder", 0, -20],
+    ["fE", "Fase Ende, Länge in Z (0 = keine)", 0.3, 0.3],
+    ...FASEN,
+  ], bild: ["M6,14 H34 L52.4,44 Q56,50 63,50 H108 L114,56 V86", "M52.4,44 Q56,50 63,50"] },
+  { name: "Radius am Ende", bau: "radiusAmEnde", felder: [   // %4202
+    ["dZ", "Ø Zylinder", 11.97, 11.97],
+    ["zS", "Z Stirnseite", 0, -20],
+    ["R", "Radius", 0.8, 0.8],
+  ], bild: ["M8,30 H96 Q110,30 110,44 V86", "M96,30 Q110,30 110,44"] },
+  { name: "Flaschenhals", bau: "flaschenhals", felder: [   // %6432
+    ["dG", "Ø groß", 53.92, 53.92],
+    ["zO", "Z Ecke oben (Ø groß/Schräge 1)", -103.28, -6.72],
+    ["w1", "Winkel Schräge 1 zur Z-Achse in °", 40.882, 40.882],
+    ["R1", "Radius 1 (Schräge 1/Schräge 2)", 25.4, 25.4],
+    ["zM", "Z Ecke Mitte (Schräge 1/Schräge 2)", -91.075, -18.925],
+    ["w2", "Winkel Schräge 2 zur Z-Achse in °", 5.897, 5.897],
+    ["R2", "Radius 2 (Schräge 2/Zylinder)", 25.4, 25.4],
+    ["dZ", "Ø Zylinder", 19.19, 19.19],
+    ["zE", "Z Ende Zylinder", 0, -110],
+    ["fE", "Fase Ende, Länge in Z (0 = keine)", 1.7, 1.7],
+    ...FASEN,
+  ], bild: ["M6,12 H26 L45,40.5 Q50,48 58.8,49.8 L94.1,56.8 Q100,58 106,58 H116 L120,62 V86",
+    "M45,40.5 Q50,48 58.8,49.8 M94.1,56.8 Q100,58 106,58"] },
+  { name: "Ballig", bau: "ballig", felder: [   // %6305
+    ["dM", "Ø Mitte (größter Ø)", 45, 45],
+    ["zM", "Z Mitte", -16.125, -16.125],
+    ["R", "Radius ballig", 398, 398],
+    ["zE", "Z Ende", 3, -35.25],
+  ], bild: ["M8,86 V40 Q36.5,30 65,30 Q93.5,30 122,40 V86", "M65,30 Q93.5,30 122,40",
+    "M8,86 V40 Q36.5,30 65,30 Q93.5,30 122,40 V86 Z"] },
+  { name: "Stufe", bau: "stufe", felder: [   // %5636
+    ["dS", "Ø Schulter", 67.075, 67.075],
+    ["zP1", "Z Planfläche 1", -20.2, -9.8],
+    ["R1", "Radius 1 (0 = scharfe Ecke)", 0.1, 0.1],
+    ["dM", "Ø Mitte", 64, 64],
+    ["zP2", "Z Planfläche 2", -3.125, -26.875],
+    ["R2", "Radius 2 (0 = scharfe Ecke)", 0.6, 0.6],
+    ["dZ", "Ø Zylinder", 58.775, 58.775],
+    ["zE", "Z Ende Zylinder", 0, -30],
+    ["fS", "Fase Schulter, Länge in Z (0 = keine)", 0.5, 0.5],
+    ["fM", "Fase Absatz 2, Länge in Z (0 = keine)", 0.5, 0.5],
+    ["fE", "Fase Ende, Länge in Z (0 = keine)", 0.5, 0.5],
+    ...FASEN,
+  ], bild: ["M4,12 H22 L26,16 V30 Q26,36 32,36 H64 L68,40 V52 Q68,58 74,58 H114 L118,62 V86",
+    "M26,30 Q26,36 32,36 M68,52 Q68,58 74,58"] },
+];
+for (const g of FORM_GRUPPEN) {
+  // Links zuerst: In der Auswahl steht „links“ in der linken Spalte
+  g.formen = [-1, 1].map(s => g.bau ? konturForm(g.name, g.bau, g.felder, s) : kantenForm(s));
+  for (const f of g.formen) {
+    f.name = `${g.name} ${seiteText(f.seite)}`;
+    f.g = f.arten(f.rechne(f.plan(f.felder.map(x => x.wert))));
+  }
+}
+
+/** Editor einer Form: Werte aus der Zeichnung eingeben, Tangentenpunkte und I/K werden berechnet. */
+function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
+  const startZahlen = vorschlag || form.felder.map(f => f.wert);
+  const werte = startZahlen.map(Fmt.zahl);
+  const startPlan = form.plan(startZahlen);
   let aktiv = -1;
   const felder = [];   // Eingabefelder: { i, input }
 
@@ -1063,15 +1519,17 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
 
   function rechne() {
     const zahlen = werte.map(lies);
-    let eingabe = null, ergebnis = null, fehler = null;
-    if (zahlen.every(z => z != null)) eingabe = new KantenEingabe(...zahlen);
-    if (eingabe) {
-      try { ergebnis = Kante.berechne(eingabe); } catch (err) {
+    let plan = null, ergebnis = null, fehler = null;
+    if (zahlen.every(z => z != null)) {
+      try {
+        plan = form.plan(zahlen);
+        ergebnis = form.rechne(plan);
+      } catch (err) {
         if (!(err instanceof GeometrieFehler)) throw err;
         fehler = err.message;
       }
     } else fehler = "Bitte alle Werte als Zahl eingeben.";
-    return { zahlen, eingabe, ergebnis, fehler };
+    return { zahlen, plan, ergebnis, fehler };
   }
 
   function zahlFeld(i, label) {
@@ -1099,32 +1557,28 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
   }
 
   function aktualisiere() {
-    const { zahlen, eingabe, ergebnis, fehler } = rechne();
+    const { zahlen, plan, ergebnis, fehler } = rechne();
+    const basis = plan || startPlan;   // bei falschen Maßen die Zeichnung der Vorgabe zeigen
     grafik.setze({
-      bahn: ergebnis ? bahnVon(ergebnis) : [],
-      zeichnung: zeichnungVon(eingabe || start),
-      punkte: ergebnis ? [
-        gPunkt(ergebnis.start, `Z${Fmt.zahl(ergebnis.start.z)}`),
-        gPunkt(ergebnis.ende1, `X${Fmt.zahl(ergebnis.ende1.x)} Z${Fmt.zahl(ergebnis.ende1.z)}`),
-        gPunkt(ergebnis.start2, `X${Fmt.zahl(ergebnis.start2.x)} Z${Fmt.zahl(ergebnis.start2.z)}`),
-        gPunkt(ergebnis.ende2, `X${Fmt.zahl(ergebnis.ende2.x)}`),
-      ] : [],
-      mitten: ergebnis ? [ergebnis.mitte1, ergebnis.mitte2] : [],
-      hervor: hervorhebung(aktiv, eingabe || start, ergebnis),
+      bahn: ergebnis ? form.bahn(ergebnis) : [],
+      zeichnung: form.zeichnung(basis),
+      punkte: ergebnis ? form.punkte(ergebnis) : [],
+      mitten: ergebnis ? form.mitten(ergebnis) : [],
+      hervor: form.hervor(aktiv, basis, ergebnis),
     });
     felder.forEach(({ i, input }) => input.classList.toggle("ungueltig", zahlen[i] == null));
 
     const teile = [];
     if (fehler != null) teile.push(h("div", { class: "karte fehler" }, fehler));
     if (ergebnis) {
-      const block = NcProgramm.ncBlock(ergebnis);
-      teile.push(ergebnisKarte(ergebnis), codeKarte("NC-Sätze", block));
-      teile.push(h("button", { class: "knopf voll", type: "button", onclick: () => onUebernehmen(ergebnis) }, uebernehmenText));
+      const block = form.nc(ergebnis);
+      teile.push(form.karte(ergebnis), codeKarte("NC-Sätze", block));
+      teile.push(h("button", { class: "knopf voll", type: "button", onclick: () => onUebernehmen(ergebnis, block) }, uebernehmenText));
     }
     ergebnisBereich.replaceChildren(...teile);
   }
 
-  const eingabeBereich = h("div", { class: "stapel" }, ...FELDER.map((f, i) => zahlFeld(i, f.titel)));
+  const eingabeBereich = h("div", { class: "stapel" }, ...form.felder.map((f, i) => zahlFeld(i, f.titel)));
   aktualisiere();
   return h("div", { class: "stapel" }, grafik.wurzel, eingabeBereich, ergebnisBereich);
 }
@@ -1253,12 +1707,14 @@ el("berechnen").addEventListener("click", () => {
   }
   hinweis.hidden = true;
   const code = zustand.code;
+  const vorschlag = programm.eingabeAus(m);
   el("dialog-inhalt").replaceChildren(
     h("p", { style: "margin-bottom:8px" },
       `Vorschlag aus deinem Code (Zeilen ${m.kreis1.zeile + 1}–${m.kreis2.zeile + 1}). ` +
       "Bitte mit der Zeichnung vergleichen und bei Bedarf korrigieren."),
-    kantenEditor({
-      vorschlag: programm.eingabeAus(m),
+    formEditor({
+      form: kantenForm(vorschlag.seite),
+      vorschlag: kantenWerte(vorschlag),
       uebernehmenText: "In den Code übernehmen",
       onUebernehmen: erg => {
         const [neu, zeilen] = programm.ersetze(m, erg);
@@ -1275,18 +1731,54 @@ el("berechnen").addEventListener("click", () => {
   el("dialog-inhalt").scrollTop = 0;
 });
 
-// ---------- Tab „Zeichnung“ ----------
+// ---------- Tab „Zeichnung“: Auswahlseite mit Kacheln, dann Editor der Form ----------
 
-el("tab-zeichnung").append(kantenEditor({
-  vorschlag: null,
-  uebernehmenText: "Sätze an den Code anhängen",
-  onUebernehmen: erg => {
-    const block = NcProgramm.ncBlock(erg);
-    setzeCode(zustand.code.trim() === "" ? block : zustand.code.trimEnd() + "\n" + block);
-    zeigeTab("code");
-    toast("Sätze angehängt");
-  },
-}));
+const auswahl = el("formen-auswahl"), editorBereich = el("formen-editor");
+const editoren = new Map();   // Form → Editor; die Eingaben bleiben, solange die Seite offen ist
+
+function kachelBild([linie, radien, flaeche], gespiegelt) {
+  const t = document.createElement("template");
+  t.innerHTML = `<svg viewBox="0 0 130 90" fill="none" stroke-linejoin="round" aria-hidden="true">` +
+    `<g${gespiegelt ? ' transform="translate(130,0) scale(-1,1)"' : ""}>` +
+    `<line x1="2" y1="86" x2="128" y2="86" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="6 3"/>` +
+    `<path d="${flaeche || `${linie} H${parseFloat(linie.slice(1))} Z`}" fill="currentColor" fill-opacity=".08"/>` +
+    `<path d="${linie}" stroke="currentColor" stroke-width="1.5"/>` +
+    `<path class="radius" d="${radien}" stroke-width="3.5"/></g></svg>`;
+  return t.content.firstChild;
+}
+
+function zeigeAuswahl() {
+  auswahl.hidden = false;
+  editorBereich.hidden = true;
+  window.scrollTo(0, 0);
+}
+
+function zeigeForm(form) {
+  if (!editoren.has(form)) editoren.set(form, h("div", { class: "stapel" },
+    h("button", { class: "text-knopf", type: "button", onclick: zeigeAuswahl }, "‹ Alle Formen"),
+    h("div", { class: "form-kopf" }, h("h2", null, form.name), h("span", { class: "schild" }, form.g)),
+    formEditor({
+      form,
+      vorschlag: null,
+      uebernehmenText: "Sätze an den Code anhängen",
+      onUebernehmen: (erg, block) => {
+        setzeCode(zustand.code.trim() === "" ? block : zustand.code.trimEnd() + "\n" + block);
+        zeigeTab("code");
+        toast("Sätze angehängt");
+      },
+    })));
+  editorBereich.replaceChildren(editoren.get(form));
+  auswahl.hidden = true;
+  editorBereich.hidden = false;
+  window.scrollTo(0, 0);
+}
+
+for (const g of FORM_GRUPPEN) {
+  auswahl.append(h("h2", { class: "abschnitt" }, g.name), h("div", { class: "kacheln" }, ...g.formen.map(f =>
+    h("button", { class: "kachel", type: "button", "aria-label": f.name, onclick: () => zeigeForm(f) },
+      kachelBild(g.bild, f.seite < 0),
+      h("span", null, f.seite < 0 ? `← links · ${f.g}` : `rechts · ${f.g} →`)))));
+}
 
 // ---------- Tabs ----------
 
@@ -1297,7 +1789,11 @@ function zeigeTab(name) {
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   window.scrollTo(0, 0);
 }
-document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => zeigeTab(b.dataset.tab)));
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  // Nochmal auf „Zeichnung“ tippen: zurück zur Auswahl
+  if (b.dataset.tab === "zeichnung" && !el("tab-zeichnung").hidden) zeigeAuswahl();
+  zeigeTab(b.dataset.tab);
+}));
 
 setzeCode(zustand.code);
 
