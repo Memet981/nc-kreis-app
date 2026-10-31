@@ -27,7 +27,7 @@ Neue Versionen lädt die App im Hintergrund – sie sind beim nächsten Öffnen 
    X/Z/I/K in den Sätzen ersetzt, auch das Z des Anfahrsatzes. „Rückgängig“ ist möglich.
 
 ## Tab „Assistent“
-Werte aus der Zeichnung Schritt für Schritt eingeben, die Grafik zeigt jeweils, welches
+Werte aus der Zeichnung eingeben. Beim Antippen eines Feldes zeigt die Grafik, welches
 Maß gemeint ist. Ergebnis als fertige NC-Sätze mit Kreisprüfung.
 Die **±**-Taste neben jedem Feld dreht das Vorzeichen (die iPhone-Zahlentastatur hat kein Minus).
 

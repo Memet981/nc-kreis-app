@@ -86,7 +86,7 @@ p { margin: 0; }
 }
 .knopf.voll { background: var(--primaer); color: var(--primaer-text); border-color: transparent; }
 .knopf:disabled { opacity: .4; cursor: default; }
-.knopf:active:not(:disabled), .chip:active, .pm:active { filter: brightness(.9); }
+.knopf:active:not(:disabled), .pm:active { filter: brightness(.9); }
 .text-knopf {
   appearance: none; background: none; border: 0; color: var(--primaer);
   font: inherit; font-size: 15px; font-weight: 600; padding: 8px 10px; min-height: 40px;
@@ -119,14 +119,6 @@ input.zahl.ungueltig { border-color: var(--fehler); box-shadow: 0 0 0 1px var(--
   flex: none; width: 50px; height: 50px; border-radius: 10px; border: 1px solid var(--rand);
   background: var(--flaeche2); color: var(--text); font: inherit; font-size: 20px; cursor: pointer;
 }
-.chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.chip {
-  height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--rand);
-  background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
-}
-.chip[aria-pressed="true"] { background: var(--chip); border-color: transparent; }
-.chip[aria-pressed="true"]::before { content: "✓ "; }
-.schritt-titel { font-size: 22px; font-weight: 600; margin: 0; }
 .grafik {
   position: relative; height: 260px; border-radius: 12px; overflow: hidden;
   background: var(--flaeche2); touch-action: none; user-select: none; -webkit-user-select: none;
@@ -984,12 +976,12 @@ function pfadVon(ctx, seg, bild) {
 // ---------- Kanten-Editor / Assistent (wie ui/KantenEditor.kt) ----------
 
 const FELDER = [
-  { titel: "Zylinder-Ø", hilfe: "Durchmesser des Zylinders vor der Kante (X-Wert)." },
-  { titel: "Z scharfe Ecke", hilfe: "Z, wo Zylinder und Schräge ohne Radius zusammentreffen (aus der Zeichnung)." },
-  { titel: "Z Planfläche", hilfe: "Z der Planfläche am Ende der Schräge." },
-  { titel: "Winkel Schräge in °", hilfe: "Winkel der Schräge zur Z-Achse (zum Zylinder), zwischen 0 und 90." },
-  { titel: "Radius Ecke Zylinder", hilfe: "Radius an der Ecke Zylinder → Schräge. 0 = scharfe Ecke." },
-  { titel: "Radius Ecke Planfläche", hilfe: "Radius an der Ecke Schräge → Planfläche. 0 = scharfe Ecke." },
+  { titel: "Zylinder-Ø" },
+  { titel: "Z scharfe Ecke" },
+  { titel: "Z Planfläche" },
+  { titel: "Winkel Schräge in °" },
+  { titel: "Radius Ecke Zylinder (0 = scharfe Ecke)" },
+  { titel: "Radius Ecke Planfläche (0 = scharfe Ecke)" },
 ];
 
 const BEISPIEL = new KantenEingabe(87.98, -4, 0, 10, 2, 1);
@@ -1059,31 +1051,15 @@ function ergebnisKarte(e) {
     h("p", { class: "klein" }, `Kreisrichtung: ${e.gKreis}`));
 }
 
-/**
- * Assistent: Werte aus der Zeichnung eingeben, Tangentenpunkte und I/K werden berechnet.
- * Mit „Schritt für Schritt“ wird jeder Wert einzeln abgefragt – wie der Dialog an der Steuerung.
- */
+/** Assistent: Werte aus der Zeichnung eingeben, Tangentenpunkte und I/K werden berechnet. */
 function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
   const start = vorschlag || BEISPIEL;
   const werte = [start.durchmesser, start.zEcke, start.zPlan, start.winkel, start.radiusZylinder, start.radiusPlan].map(Fmt.zahl);
   let aktiv = -1;
-  let schrittModus = vorschlag == null;
-  let schritt = 0;
-  let felder = [];     // sichtbare Eingabefelder: { i, input }
-  let weiterKnopf = null;
+  const felder = [];   // Eingabefelder: { i, input }
 
-  const chipSchritt = h("button", { class: "chip", type: "button" }, "Schritt für Schritt");
-  const chipAlle = h("button", { class: "chip", type: "button" }, "Alle Felder");
   const grafik = new KonturGrafik();
-  const eingabeBereich = h("div", { class: "stapel" });
   const ergebnisBereich = h("div", { class: "stapel" });
-  const wurzel = h("div", { class: "stapel" }, h("div", { class: "chips" }, chipSchritt, chipAlle),
-    grafik.wurzel, eingabeBereich, ergebnisBereich);
-
-  chipSchritt.addEventListener("click", () => { schrittModus = true; schritt = 0; baueEingaben(true); });
-  chipAlle.addEventListener("click", () => { schrittModus = false; baueEingaben(false); });
-
-  const schrittLaeuft = () => schrittModus && schritt < FELDER.length;
 
   function rechne() {
     const zahlen = werte.map(lies);
@@ -1101,7 +1077,7 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
   function zahlFeld(i, label) {
     const input = h("input", {
       class: "zahl", type: "text", inputmode: "decimal", autocomplete: "off", spellcheck: "false",
-      enterkeyhint: schrittLaeuft() ? "next" : "done", "aria-label": label,
+      enterkeyhint: "done", "aria-label": label,
     });
     input.value = werte[i];
     input.addEventListener("input", () => { werte[i] = input.value; aktualisiere(); });
@@ -1122,41 +1098,8 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
     return h("label", { class: "feld" }, label, h("div", { class: "zahl-reihe" }, input, pm));
   }
 
-  function baueEingaben(fokus) {
-    felder = [];
-    weiterKnopf = null;
-    chipSchritt.setAttribute("aria-pressed", String(schrittModus));
-    chipAlle.setAttribute("aria-pressed", String(!schrittModus));
-    if (schrittLaeuft()) {
-      const f = FELDER[schritt];
-      const feld = zahlFeld(schritt, "Wert");
-      const zurueck = h("button", { class: "knopf", type: "button", disabled: schritt === 0 }, "Zurück");
-      zurueck.addEventListener("click", () => { if (schritt > 0) { schritt--; baueEingaben(true); } });
-      weiterKnopf = h("button", { class: "knopf voll", type: "button" }, schritt === FELDER.length - 1 ? "Berechnen" : "Weiter");
-      const weiter = () => { if (lies(werte[schritt]) != null) { schritt++; baueEingaben(schritt < FELDER.length); } };
-      weiterKnopf.addEventListener("click", weiter);
-      felder[0].input.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); weiter(); } });
-      eingabeBereich.replaceChildren(
-        h("p", { class: "klein" }, `Schritt ${schritt + 1} von ${FELDER.length}`),
-        h("p", { class: "schritt-titel" }, f.titel),
-        h("p", null, f.hilfe),
-        feld,
-        h("div", { class: "reihe" }, zurueck, weiterKnopf));
-    } else {
-      const teile = FELDER.map((f, i) => zahlFeld(i, f.titel));
-      if (schrittModus) {
-        teile.push(h("button", { class: "text-knopf", type: "button",
-          onclick: () => { schritt = 0; baueEingaben(true); } }, "Nochmal Schritt für Schritt"));
-      }
-      eingabeBereich.replaceChildren(...teile);
-    }
-    aktualisiere();
-    if (fokus && felder[0]) felder[0].input.focus({ preventScroll: false });
-  }
-
   function aktualisiere() {
     const { zahlen, eingabe, ergebnis, fehler } = rechne();
-    const hervorIndex = schrittLaeuft() ? schritt : aktiv;
     grafik.setze({
       bahn: ergebnis ? bahnVon(ergebnis) : [],
       zeichnung: zeichnungVon(eingabe || start),
@@ -1167,25 +1110,23 @@ function kantenEditor({ vorschlag, uebernehmenText, onUebernehmen }) {
         gPunkt(ergebnis.ende2, `X${Fmt.zahl(ergebnis.ende2.x)}`),
       ] : [],
       mitten: ergebnis ? [ergebnis.mitte1, ergebnis.mitte2] : [],
-      hervor: hervorhebung(hervorIndex, eingabe || start, ergebnis),
+      hervor: hervorhebung(aktiv, eingabe || start, ergebnis),
     });
     felder.forEach(({ i, input }) => input.classList.toggle("ungueltig", zahlen[i] == null));
-    if (weiterKnopf) weiterKnopf.disabled = zahlen[schritt] == null;
 
     const teile = [];
-    if (!schrittLaeuft()) {
-      if (fehler != null) teile.push(h("div", { class: "karte fehler" }, fehler));
-      if (ergebnis) {
-        const block = NcProgramm.ncBlock(ergebnis);
-        teile.push(ergebnisKarte(ergebnis), codeKarte("NC-Sätze", block));
-        teile.push(h("button", { class: "knopf voll", type: "button", onclick: () => onUebernehmen(ergebnis) }, uebernehmenText));
-      }
+    if (fehler != null) teile.push(h("div", { class: "karte fehler" }, fehler));
+    if (ergebnis) {
+      const block = NcProgramm.ncBlock(ergebnis);
+      teile.push(ergebnisKarte(ergebnis), codeKarte("NC-Sätze", block));
+      teile.push(h("button", { class: "knopf voll", type: "button", onclick: () => onUebernehmen(ergebnis) }, uebernehmenText));
     }
     ergebnisBereich.replaceChildren(...teile);
   }
 
-  baueEingaben(false);
-  return wurzel;
+  const eingabeBereich = h("div", { class: "stapel" }, ...FELDER.map((f, i) => zahlFeld(i, f.titel)));
+  aktualisiere();
+  return h("div", { class: "stapel" }, grafik.wurzel, eingabeBereich, ergebnisBereich);
 }
 
 // ---------- Tab „Code“ (wie ui/CodeScreen.kt) ----------
