@@ -101,6 +101,7 @@ test("scharfe Ecke im Code bekommt Radius", () => {
 test("Lesefehler werden bereinigt", () => {
   assert.equal(NcProgramm.ocrBereinigen("n140 g02 x 87,919 z– 3.828 i-2 kO"), "N140 G02 X87.919 Z-3.828 I-2 K0");
   assert.equal(NcProgramm.ocrBereinigen("X87.9L9"), "X87.919");
+  assert.equal(NcProgramm.ocrBereinigen("[SER]\n\nL901\n  \nN80 G00 X50\n\n"), "[SER]\nL901\nN80 G00 X50");
 });
 
 test("I als 1, l oder | gelesen", () => {

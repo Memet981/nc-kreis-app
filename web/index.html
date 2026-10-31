@@ -684,7 +684,7 @@ class NcProgramm {
         imCode(s => s.replace(new RegExp(los + "[1L|]" + zahl), "I$1"));
       }
       return t;
-    }).join("\n").trim();
+    }).filter(z => z !== "").join("\n"); // Lens setzt zwischen jede Zeile eine leere
   }
 
   static ncBlock(e) {
