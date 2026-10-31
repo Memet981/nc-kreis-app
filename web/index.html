@@ -160,6 +160,13 @@ dialog.vollbild {
 }
 dialog.vollbild[open] { display: flex; flex-direction: column; }
 dialog::backdrop { background: rgba(0, 0, 0, .4); }
+dialog.hinweis {
+  width: calc(100% - 32px); max-width: 340px; padding: 20px; border: 0; border-radius: 16px;
+  background: var(--flaeche); color: var(--text);
+}
+dialog.hinweis h2 { margin: 0 0 10px; font-size: 19px; font-weight: 600; }
+dialog.hinweis p { margin-bottom: 10px; }
+dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
 .dlg-leiste {
   display: flex; align-items: center; gap: 8px;
   padding: calc(env(safe-area-inset-top) + 8px) 8px 8px 16px;
@@ -233,6 +240,13 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
     <button class="text-knopf" id="dialog-abbrechen" type="button">Abbrechen</button>
   </div>
   <div class="dlg-inhalt" id="dialog-inhalt"></div>
+</dialog>
+
+<dialog id="dialog-hinweis" class="hinweis">
+  <h2>Willkommen</h2>
+  <p>NC Kreis ist für <b>Studer-Schleifmaschinen</b> mit <b>Siemens SINUMERIK 3G</b>.</p>
+  <p class="klein">Andere Steuerungen können I/K anders rechnen.</p>
+  <form method="dialog"><button class="knopf voll" type="submit">OK</button></form>
 </dialog>
 
 <div class="toast" id="toast" role="status"></div>
@@ -1796,6 +1810,11 @@ document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click
 }));
 
 setzeCode(zustand.code);
+
+// Beim ersten Start einmal zeigen, für welche Steuerung die App ist
+const dialogHinweis = el("dialog-hinweis");
+dialogHinweis.addEventListener("close", () => speicher.schreib("nc-kreis-hinweis", "1"));
+if (!speicher.lies("nc-kreis-hinweis")) dialogHinweis.showModal();
 
 // Offline: Seite im Browser speichern (nur über http/https, nicht als einzelne Datei)
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

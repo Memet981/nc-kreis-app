@@ -1,6 +1,9 @@
 # NC Kreis
 
-Web-App für Kreisendpunkte an Kanten (Zylinder – Radius – Schräge – Radius – Planfläche).
+Web-App für Kreisendpunkte an Konturen (Kante, Hohlkehle, Ballig, Stufe …).
+
+**Für Studer-Schleifmaschinen mit Siemens SINUMERIK 3G.** Die App zeigt das beim ersten Start
+einmal an. Andere Steuerungen können I/K anders rechnen.
 
 **➜ https://memet981.github.io/nc-kreis-app/**
 
