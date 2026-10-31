@@ -179,10 +179,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 </style>
 </head>
 <body>
-<header class="leiste"><h1 id="titel">NC Kreis – Code</h1></header>
+<header class="leiste"><h1 id="titel">NC Kreis – Konturformen</h1></header>
 
 <main>
-  <section id="tab-code" class="stapel">
+  <section id="tab-code" class="stapel" hidden>
     <p id="anleitung" class="klein">Code holen: Google Lens öffnen (am iPhone die Kamera) → Bildschirm der Steuerung
       fotografieren → Text markieren → <b>Kopieren</b> → hier <b>Einfügen</b>.</p>
     <div class="reihe">
@@ -208,7 +208,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
     <div id="programm-hinweise" class="stapel"></div>
   </section>
 
-  <section id="tab-konturformen" hidden>
+  <section id="tab-konturformen">
     <div id="formen-auswahl" class="stapel">
       <p class="klein">Form antippen. Links fährt in Z−, rechts in Z+.</p>
     </div>
@@ -217,11 +217,11 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 </main>
 
 <nav class="tabs" role="tablist">
-  <button type="button" role="tab" data-tab="konturformen" aria-selected="false">
+  <button type="button" role="tab" data-tab="konturformen" aria-selected="true">
     <span class="pille"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6h6v5a3 3 0 0 0 3 3h6l3 3v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><path d="M1 21.6h22" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="3 2"/></svg></span>
     Konturformen
   </button>
-  <button type="button" role="tab" data-tab="code" aria-selected="true">
+  <button type="button" role="tab" data-tab="code" aria-selected="false">
     <span class="pille"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span>
     Code
   </button>

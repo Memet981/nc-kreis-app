@@ -27,7 +27,7 @@ Neue Versionen lädt die App im Hintergrund – sie sind beim nächsten Öffnen 
    X/Z/I/K in den Sätzen ersetzt, auch das Z des Anfahrsatzes. „Rückgängig“ ist möglich.
 
 ## Tab „Konturformen“
-Zuerst die Form antippen. Jede Form gibt es zweimal: **links** fährt in Z−, **rechts** fährt in Z+
+Die App öffnet mit diesem Tab. Zuerst die Form antippen. Jede Form gibt es zweimal: **links** fährt in Z−, **rechts** fährt in Z+
 (G02/G03 steht auf der Kachel). Die Vorgaben kommen aus echten Studer-Programmen:
 
 | Form | Kontur | Vorgabe aus |
