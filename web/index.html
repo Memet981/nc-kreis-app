@@ -115,6 +115,26 @@ textarea { width: 100%; min-height: 200px; padding: 10px 12px; font-size: 16px; 
 .zahl-reihe { display: flex; gap: 6px; }
 input.zahl { flex: 1; min-width: 0; height: 50px; padding: 0 12px; font-size: 18px; }
 input.zahl.ungueltig { border-color: var(--fehler); box-shadow: 0 0 0 1px var(--fehler); }
+input.zahl.mitgezogen { animation: mitgezogen 1s ease-out; }
+@keyframes mitgezogen { from { background: var(--ok-flaeche); border-color: var(--ok); } }
+.schalter-zeile {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--flaeche); border: 1px solid var(--rand); border-radius: 10px;
+}
+.schalter { flex: 1; display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--text); cursor: pointer; }
+.schalter input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--primaer); }
+.schalter small { display: block; font-size: 13px; color: var(--text2); }
+.info-knopf {
+  flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--rand);
+  background: var(--flaeche2); color: var(--primaer); font: italic 600 18px Georgia, serif; cursor: pointer;
+}
+dialog.info { max-height: 85vh; overflow-y: auto; }
+dialog.info p { font-size: 15px; line-height: 1.45; }
+.info-skizze { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 6px; }
+.info-skizze svg {
+  display: block; width: 100%; height: auto; font: 8px system-ui, sans-serif;
+  background: var(--flaeche2); border-radius: 10px;
+}
 .pm {
   flex: none; width: 50px; height: 50px; border-radius: 10px; border: 1px solid var(--rand);
   background: var(--flaeche2); color: var(--text); font: inherit; font-size: 20px; cursor: pointer;
@@ -246,6 +266,11 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
   <h2>Willkommen</h2>
   <p>NC Kreis ist für <b>Studer-Schleifmaschinen</b> mit <b>Siemens SINUMERIK 3G</b>.</p>
   <p class="klein">Andere Steuerungen können I/K anders rechnen.</p>
+  <form method="dialog"><button class="knopf voll" type="submit">OK</button></form>
+</dialog>
+
+<dialog id="dialog-info" class="hinweis info">
+  <div id="info-inhalt"></div>
   <form method="dialog"><button class="knopf voll" type="submit">OK</button></form>
 </dialog>
 
@@ -1375,6 +1400,95 @@ function konturKarte(e) {
 const konturArten = e => [...new Set(e.kreise.map(k => k.art))].join("/");
 const ohneKlammer = titel => titel.replace(/\s*\(.*\)$/, "").replace(/, Länge in Z$/, "");
 
+// ---------- Schalter „X festhalten“: Z korrigieren, die ganze Schräge wandert mit ----------
+
+/**
+ * feld wird korrigiert, mit wandert um dieselbe Differenz mit (Feldnummer bzw. Schlüssel bei Kontur-Formen).
+ * skizze für den Info-Knopf: Linien als [x, y] in einem Feld 150 breit, rechts herum gezeichnet;
+ * marken: Hilfslinien [von x, bis x, y] und Text [x, y, Text].
+ */
+const FESTHALTEN_KANTE = {
+  feld: 2, mit: 1,
+  text: "X an der Planfläche festhalten", unter: "Z scharfe Ecke wandert mit",
+  skizze: {
+    hoehe: 92,
+    vorher: [[6, 30], [60, 30], [95, 50], [95, 88]],
+    aus: [[6, 30], [60, 30], [112, 59.7], [112, 88]],
+    an: [[6, 30], [77, 30], [112, 50], [112, 88]],
+    markeAus: { linien: [[95, 132, 50], [112, 132, 59.7]], text: [134, 58, "ΔX"] },
+    markeAn: { linien: [[112, 148, 50]], text: [116, 66, "X bleibt"] },
+  },
+  erklaerung: [
+    ["Ohne Schalter: ", "Z scharfe Ecke bleibt stehen. Änderst du Z Planfläche, wird die Schräge länger oder kürzer. " +
+      "Weil der Winkel gleich bleibt, endet sie tiefer oder höher – das X an der Planfläche ändert sich."],
+    ["Faustregel: ", "ΔX = 2 · ΔZ · tan(Winkel). Bei 10° und 0.1 in Z ändert sich X um 0.035, bei 45° um 0.2. " +
+      "Planfläche weiter weg von der Ecke → X kleiner, näher zur Ecke → X größer."],
+    ["Mit Schalter: ", "Z scharfe Ecke wandert um denselben Wert mit. Die ganze Schräge samt Radien rutscht in Z. " +
+      "Winkel und X bleiben gleich, nur der Zylinder wird etwas länger oder kürzer."],
+    ["Wann einschalten: ", "nach dem Messen, wenn nur die Planfläche korrigiert werden soll."],
+    ["Wann aus lassen: ", "beim Eintippen einer neuen Zeichnung, sonst wandert Z scharfe Ecke beim Tippen mit. " +
+      "Z scharfe Ecke selbst kannst du immer frei ändern."],
+  ],
+};
+
+const FESTHALTEN_FLASCHENHALS = {
+  feld: "zM", mit: "zO",
+  text: "X an der Ecke Mitte festhalten", unter: "Z Ecke oben wandert mit",
+  skizze: {
+    hoehe: 88,
+    vorher: [[6, 30], [33.5, 30], [61, 53.1], [117.7, 79.5], [143.5, 79.5]],
+    aus: [[6, 30], [33.5, 30], [72, 62.5], [108.9, 79.5], [143.5, 79.5]],
+    an: [[6, 30], [44.5, 30], [72, 53.1], [128.7, 79.5], [143.5, 79.5]],
+    markeAus: { linien: [[61, 92, 53.1], [72, 92, 62.5]], text: [94, 61, "ΔX"] },
+    markeAn: { linien: [[72, 100, 53.1]], text: [78, 47, "X bleibt"] },
+  },
+  erklaerung: [
+    ["Ohne Schalter: ", "Z Ecke oben bleibt stehen. Änderst du Z Ecke Mitte, rutscht die Ecke an Schräge 1 entlang " +
+      "nach oben oder unten – das X an der Ecke Mitte ändert sich. Schräge 2 fängt dann woanders an, " +
+      "darum wandert auch die Ecke zum Zylinder."],
+    ["Faustregel: ", "ΔX = 2 · ΔZ · tan(Winkel Schräge 1). " +
+      "Ecke Mitte weiter weg von Ecke oben → X kleiner, näher dran → X größer."],
+    ["Mit Schalter: ", "Z Ecke oben wandert um denselben Wert mit. Schräge 1, Schräge 2 und beide Radien rutschen " +
+      "zusammen in Z. Beide Winkel und alle X bleiben gleich. Z Ende bleibt stehen, der Zylinder wird etwas " +
+      "kürzer oder länger."],
+    ["Wann einschalten: ", "nach dem Messen, wenn nur die Lage in Z korrigiert werden soll."],
+    ["Wann aus lassen: ", "beim Eintippen einer neuen Zeichnung, sonst wandert Z Ecke oben beim Tippen mit. " +
+      "Z Ecke oben selbst kannst du immer frei ändern."],
+  ],
+};
+
+/** Skizze für den Info-Knopf: oben Schalter aus, unten Schalter an; bei „links“ gespiegelt (Texte nicht). */
+function festhaltenSkizze({ hoehe, vorher, aus, an, markeAus, markeAn }, s) {
+  const B = 150, W = 190, DX = (W - B) / 2;
+  const mx = x => (s > 0 ? x : B - x) + DX;
+  const linie = (punkte, farbe, gestrichelt) =>
+    `<polyline points="${punkte.map(([x, y]) => `${mx(x)},${y}`).join(" ")}" fill="none" stroke="var(${farbe})" ` +
+    `stroke-width="${gestrichelt ? 0.9 : 1.6}" stroke-linejoin="round"${gestrichelt ? ' stroke-dasharray="3 2"' : ""}/>`;
+  const marke = ({ linien, text: [x, y, t] }, farbe) =>
+    linien.map(([x1, x2, ly]) => `<line x1="${mx(x1)}" y1="${ly}" x2="${mx(x2)}" y2="${ly}" ` +
+      `stroke="var(${farbe})" stroke-width="0.6" stroke-dasharray="1.5 1.5"/>`).join("") +
+    `<text x="${mx(x)}" y="${y}" text-anchor="${s > 0 ? "start" : "end"}" fill="var(${farbe})">${t}</text>`;
+  const bild = (titel, linieNeu, m, farbe, beschreibung) =>
+    `<svg viewBox="0 0 ${W} ${hoehe}" role="img" aria-label="${beschreibung}">` +
+    `<text x="${W / 2}" y="12" text-anchor="middle" fill="var(${farbe})" font-weight="600">${titel}</text>` +
+    linie(vorher, "--text2", true) + linie(linieNeu, farbe) + marke(m, farbe) + "</svg>";
+  const div = h("div", { class: "info-skizze" });
+  div.innerHTML = bild("Schalter aus", aus, markeAus, "--fehler", "Schalter aus: X ändert sich.") +
+    bild("Schalter an", an, markeAn, "--ok", "Schalter an: X bleibt.");
+  return div;
+}
+
+function zeigeInfo(fest, s) {
+  const d = el("dialog-info");
+  el("info-inhalt").replaceChildren(
+    h("h2", null, fest.text),
+    festhaltenSkizze(fest.skizze, s),
+    h("p", { class: "klein" }, "Gestrichelt = vorher. Die Korrektur ist übertrieben gezeichnet."),
+    ...fest.erklaerung.map(([fett, rest]) => h("p", null, h("b", null, fett), rest)));
+  d.showModal();
+  d.scrollTop = 0;
+}
+
 /**
  * Eine Form für den Editor. plan(zahlen) → Eingabe für rechne (und für Zeichnung/Hervorhebung, auch wenn rechne
  * scheitert), rechne(plan) → Ergebnis; beide werfen GeometrieFehler bei unpassenden Maßen.
@@ -1384,6 +1498,7 @@ function kantenForm(s) {
   return {
     gruppe: "Kante", seite: s,
     felder: FELDER.map((f, i) => ({ titel: f.titel, wert: kantenWerte(start)[i] })),
+    festhalten: FESTHALTEN_KANTE,
     plan: zahlen => new KantenEingabe(...zahlen),
     rechne: e => {
       pruefe(e.seite === s, `Bei „${seiteText(s)}“ muss Z Planfläche ${s > 0 ? "größer" : "kleiner"} als Z scharfe Ecke sein.`);
@@ -1406,10 +1521,12 @@ function kantenForm(s) {
 }
 
 /** Form aus Kontur[bau]. felder: [Schlüssel, Titel, Vorgabe rechts, Vorgabe links]. */
-function konturForm(gruppe, bau, felder, s) {
+function konturForm(gruppe, bau, felder, s, festhalten) {
+  const nummer = key => felder.findIndex(([k]) => k === key);
   return {
     gruppe, seite: s,
     felder: felder.map(([key, titel, rechts, links]) => ({ key, titel, wert: s > 0 ? rechts : links })),
+    festhalten: festhalten && { ...festhalten, feld: nummer(festhalten.feld), mit: nummer(festhalten.mit) },
     plan: zahlen => Kontur[bau](Object.fromEntries(felder.map(([key], i) => [key, zahlen[i]])), s),
     rechne: plan => Kontur.berechne(plan),
     zeichnung: plan => plan.ecken,
@@ -1474,7 +1591,7 @@ const FORM_GRUPPEN = [
     ["zS", "Z Stirnseite", 0, -20],
     ["R", "Radius", 0.8, 0.8],
   ], bild: ["M8,30 H96 Q110,30 110,44 V86", "M96,30 Q110,30 110,44"] },
-  { name: "Flaschenhals", bau: "flaschenhals", felder: [   // %6432
+  { name: "Flaschenhals", bau: "flaschenhals", festhalten: FESTHALTEN_FLASCHENHALS, felder: [   // %6432
     ["dG", "Ø groß", 53.92, 53.92],
     ["zO", "Z Ecke oben (Ø groß/Schräge 1)", -103.28, -6.72],
     ["w1", "Winkel Schräge 1 zur Z-Achse in °", 40.882, 40.882],
@@ -1513,7 +1630,7 @@ const FORM_GRUPPEN = [
 ];
 for (const g of FORM_GRUPPEN) {
   // Links zuerst: In der Auswahl steht „links“ in der linken Spalte
-  g.formen = [-1, 1].map(s => g.bau ? konturForm(g.name, g.bau, g.felder, s) : kantenForm(s));
+  g.formen = [-1, 1].map(s => g.bau ? konturForm(g.name, g.bau, g.felder, s, g.festhalten) : kantenForm(s));
   for (const f of g.formen) {
     f.name = `${g.name} ${seiteText(f.seite)}`;
     f.g = f.arten(f.rechne(f.plan(f.felder.map(x => x.wert))));
@@ -1530,6 +1647,39 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
 
   const grafik = new KonturGrafik();
   const ergebnisBereich = h("div", { class: "stapel" });
+
+  // „X festhalten“: zuletzt = letzter gültiger Wert von fest.feld, damit Zwischenstände wie „-“ nichts verschieben
+  const fest = form.festhalten;
+  let festAn = false;
+  let zuletzt = fest ? lies(werte[fest.feld]) : null;
+
+  /** Neuer Text in Feld i; bei eingeschaltetem „X festhalten“ wandert das Partnerfeld um dieselbe Differenz mit. */
+  function aendere(i, text) {
+    werte[i] = text;
+    if (fest && i === fest.feld) {
+      const neu = lies(text), partner = lies(werte[fest.mit]);
+      if (neu != null) {
+        if (festAn && zuletzt != null && partner != null && neu !== zuletzt) {
+          werte[fest.mit] = Fmt.zahl(partner + neu - zuletzt);
+          const { input } = felder.find(f => f.i === fest.mit);
+          input.value = werte[fest.mit];
+          input.classList.remove("mitgezogen");
+          void input.offsetWidth;   // Animation neu starten
+          input.classList.add("mitgezogen");
+        }
+        zuletzt = neu;
+      }
+    }
+    aktualisiere();
+  }
+
+  function schalterZeile() {
+    const box = h("input", { type: "checkbox" });
+    box.addEventListener("change", () => { festAn = box.checked; zuletzt = lies(werte[fest.feld]); });
+    return h("div", { class: "schalter-zeile" },
+      h("label", { class: "schalter" }, box, h("span", null, fest.text, h("small", null, fest.unter))),
+      h("button", { class: "info-knopf", type: "button", "aria-label": "Erklärung", onclick: () => zeigeInfo(fest, form.seite) }, "i"));
+  }
 
   function rechne() {
     const zahlen = werte.map(lies);
@@ -1552,7 +1702,7 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
       enterkeyhint: "done", "aria-label": label,
     });
     input.value = werte[i];
-    input.addEventListener("input", () => { werte[i] = input.value; aktualisiere(); });
+    input.addEventListener("input", () => aendere(i, input.value));
     input.addEventListener("focus", () => { if (aktiv !== i) { aktiv = i; aktualisiere(); } });
     let warFokus = false;
     const pm = h("button", { class: "pm", type: "button", "aria-label": "Vorzeichen umdrehen" }, "±");
@@ -1561,9 +1711,8 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
     pm.addEventListener("click", () => {
       const v = input.value.trim();
       input.value = v.startsWith("-") ? v.slice(1) : "-" + v;
-      werte[i] = input.value;
       aktiv = i;
-      aktualisiere();
+      aendere(i, input.value);
       if (warFokus) input.focus();
     });
     felder.push({ i, input });
@@ -1592,7 +1741,8 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
     ergebnisBereich.replaceChildren(...teile);
   }
 
-  const eingabeBereich = h("div", { class: "stapel" }, ...form.felder.map((f, i) => zahlFeld(i, f.titel)));
+  const eingabeBereich = h("div", { class: "stapel" },
+    fest ? schalterZeile() : null, ...form.felder.map((f, i) => zahlFeld(i, f.titel)));
   aktualisiere();
   return h("div", { class: "stapel" }, grafik.wurzel, eingabeBereich, ergebnisBereich);
 }

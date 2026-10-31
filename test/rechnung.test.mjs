@@ -224,6 +224,28 @@ test("Flaschenhals ergibt %6432", () => {
   nah(k1.i, l.kreise[0].i, 1e-9); nah(-k1.k, l.kreise[0].k, 1e-9);
 });
 
+test("Kante: Z Ecke und Z Planfläche gleich verschoben – X bleibt", () => {
+  const a = Kante.berechne(new KantenEingabe(87.98, -4, 0, 10, 2, 1));
+  const b = Kante.berechne(new KantenEingabe(87.98, -3.9, 0.1, 10, 2, 1));
+  for (const p of ["start", "ende1", "start2", "ende2"]) {
+    nah(a[p].x, b[p].x, 1e-9);
+    nah(a[p].z + 0.1, b[p].z, 1e-9);
+  }
+  // nur Z Planfläche verschoben: X wandert um 2·0.1·tan 10°
+  const c = Kante.berechne(new KantenEingabe(87.98, -4, 0.1, 10, 2, 1));
+  nah(a.ende2.x - 0.2 * Math.tan(10 * Math.PI / 180), c.ende2.x, 1e-9);
+});
+
+test("Flaschenhals: Z Ecke oben und Z Ecke Mitte gleich verschoben – X bleibt", () => {
+  const werte = { dG: 53.92, zO: -103.28, w1: 40.882, R1: 25.4, zM: -91.075, w2: 5.897, R2: 25.4, dZ: 19.19,
+    zE: 0, fE: 1.7, fw: 45, a: 0.3 };
+  const a = kontur("flaschenhals", werte, 1);
+  const b = kontur("flaschenhals", { ...werte, zO: -103.18, zM: -90.975 }, 1);
+  assert.equal(a.saetze.length, b.saetze.length);
+  a.saetze.forEach((s, i) => nah(s.ende.x, b.saetze[i].ende.x, 1e-9));
+  nah(a.kreise[1].ende.z + 0.1, b.kreise[1].ende.z, 1e-9);
+});
+
 test("verrunde rechnet wie Kante.berechne", () => {
   const k = Kante.berechne(new KantenEingabe(87.98, -4, 0, 10, 2, 1));
   const v = Kontur.verrunde({ ecken: [new P(-10, 43.99), k.ecke1, k.ecke2, new P(0, k.ecke2.r - 5)], radien: [0, 2, 1, 0] });
