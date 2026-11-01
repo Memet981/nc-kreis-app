@@ -121,6 +121,11 @@ input.zahl.mitgezogen { animation: mitgezogen 1s ease-out; }
   display: flex; align-items: center; gap: 10px; padding: 10px 12px;
   background: var(--flaeche); border: 1px solid var(--rand); border-radius: 10px;
 }
+.fest-rahmen {
+  display: flex; flex-direction: column; gap: 10px; padding: 10px;
+  border: 2px solid var(--primaer); border-radius: 12px;
+}
+.fest-rahmen .schalter-zeile { padding: 0; border: 0; background: none; }
 .schalter { flex: 1; display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--text); cursor: pointer; }
 .schalter input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--primaer); }
 .schalter small { display: block; font-size: 13px; color: var(--text2); }
@@ -146,6 +151,12 @@ dialog.info p { font-size: 15px; line-height: 1.45; }
 .grafik canvas { display: block; width: 100%; height: 100%; }
 .grafik .hervor-text { position: absolute; top: 8px; left: 10px; color: var(--akzent); font-size: 14px; font-weight: 600; pointer-events: none; }
 .grafik .tipp { position: absolute; right: 8px; bottom: 5px; font-size: 11px; color: var(--text2); opacity: .8; pointer-events: none; }
+.grafik-halter {
+  position: sticky; top: var(--leiste-hoehe, 56px); z-index: 4;
+  margin: -10px -16px 0; padding: 10px 16px 6px; background: var(--bg);
+}
+.dlg-inhalt .grafik-halter { top: -16px; }
+.grafik-halter .grafik { height: min(260px, 34vh); }
 .kacheln { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .kachel {
   appearance: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px;
@@ -266,6 +277,13 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
   <h2>Willkommen</h2>
   <p>NC Kreis ist für <b>Studer-Schleifmaschinen</b> mit <b>Siemens SINUMERIK 3G</b>.</p>
   <p class="klein">Andere Steuerungen können I/K anders rechnen.</p>
+  <form method="dialog"><button class="knopf voll" type="submit">OK</button></form>
+</dialog>
+
+<dialog id="dialog-vorschlag" class="hinweis">
+  <h2>Vorschlag aus deinem Code</h2>
+  <p>Die Werte stammen aus den Zeilen <b id="vorschlag-zeilen"></b> deines Codes.</p>
+  <p>Bitte mit der Zeichnung vergleichen und bei Bedarf korrigieren.</p>
   <form method="dialog"><button class="knopf voll" type="submit">OK</button></form>
 </dialog>
 
@@ -1400,7 +1418,7 @@ function konturKarte(e) {
 const konturArten = e => [...new Set(e.kreise.map(k => k.art))].join("/");
 const ohneKlammer = titel => titel.replace(/\s*\(.*\)$/, "").replace(/, Länge in Z$/, "");
 
-// ---------- Schalter „X festhalten“: Z korrigieren, die ganze Schräge wandert mit ----------
+// ---------- Schalter „X Maß bleibt fest“: Z korrigieren, die ganze Schräge wandert mit ----------
 
 /**
  * feld wird korrigiert, mit wandert um dieselbe Differenz mit (Feldnummer bzw. Schlüssel bei Kontur-Formen).
@@ -1409,7 +1427,7 @@ const ohneKlammer = titel => titel.replace(/\s*\(.*\)$/, "").replace(/, Länge i
  */
 const FESTHALTEN_KANTE = {
   feld: 2, mit: 1,
-  text: "X an der Planfläche festhalten", unter: "Z scharfe Ecke wandert mit",
+  text: "X Maß bleibt fest bei Änderung", unter: "Z scharfe Ecke wandert mit",
   skizze: {
     hoehe: 92,
     vorher: [[6, 30], [60, 30], [95, 50], [95, 88]],
@@ -1433,7 +1451,7 @@ const FESTHALTEN_KANTE = {
 
 const FESTHALTEN_FLASCHENHALS = {
   feld: "zM", mit: "zO",
-  text: "X an der Ecke Mitte festhalten", unter: "Z Ecke oben wandert mit",
+  text: "X Maß bleibt fest bei Änderung", unter: "Z Ecke oben wandert mit",
   skizze: {
     hoehe: 88,
     vorher: [[6, 30], [33.5, 30], [61, 53.1], [117.7, 79.5], [143.5, 79.5]],
@@ -1648,12 +1666,12 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
   const grafik = new KonturGrafik();
   const ergebnisBereich = h("div", { class: "stapel" });
 
-  // „X festhalten“: zuletzt = letzter gültiger Wert von fest.feld, damit Zwischenstände wie „-“ nichts verschieben
+  // „X Maß bleibt fest“: zuletzt = letzter gültiger Wert von fest.feld, damit Zwischenstände wie „-“ nichts verschieben
   const fest = form.festhalten;
-  let festAn = false;
+  let festAn = true;   // standardmäßig an
   let zuletzt = fest ? lies(werte[fest.feld]) : null;
 
-  /** Neuer Text in Feld i; bei eingeschaltetem „X festhalten“ wandert das Partnerfeld um dieselbe Differenz mit. */
+  /** Neuer Text in Feld i; bei eingeschaltetem „X Maß bleibt fest“ wandert das Partnerfeld um dieselbe Differenz mit. */
   function aendere(i, text) {
     werte[i] = text;
     if (fest && i === fest.feld) {
@@ -1675,6 +1693,7 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
 
   function schalterZeile() {
     const box = h("input", { type: "checkbox" });
+    box.checked = festAn;
     box.addEventListener("change", () => { festAn = box.checked; zuletzt = lies(werte[fest.feld]); });
     return h("div", { class: "schalter-zeile" },
       h("label", { class: "schalter" }, box, h("span", null, fest.text, h("small", null, fest.unter))),
@@ -1741,10 +1760,14 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
     ergebnisBereich.replaceChildren(...teile);
   }
 
-  const eingabeBereich = h("div", { class: "stapel" },
-    fest ? schalterZeile() : null, ...form.felder.map((f, i) => zahlFeld(i, f.titel)));
+  // Schalter direkt unter seinem Feld, beide in einem Rahmen
+  const eingabeBereich = h("div", { class: "stapel" }, ...form.felder.map((f, i) => {
+    const feld = zahlFeld(i, f.titel);
+    return fest && i === fest.feld ? h("div", { class: "fest-rahmen" }, feld, schalterZeile()) : feld;
+  }));
   aktualisiere();
-  return h("div", { class: "stapel" }, grafik.wurzel, eingabeBereich, ergebnisBereich);
+  // Grafik bleibt beim Scrollen oben stehen, die Felder laufen darunter durch
+  return h("div", { class: "stapel" }, h("div", { class: "grafik-halter" }, grafik.wurzel), eingabeBereich, ergebnisBereich);
 }
 
 // ---------- Tab „Code“ (wie ui/CodeScreen.kt) ----------
@@ -1873,9 +1896,6 @@ el("berechnen").addEventListener("click", () => {
   const code = zustand.code;
   const vorschlag = programm.eingabeAus(m);
   el("dialog-inhalt").replaceChildren(
-    h("p", { style: "margin-bottom:8px" },
-      `Vorschlag aus deinem Code (Zeilen ${m.kreis1.zeile + 1}–${m.kreis2.zeile + 1}). ` +
-      "Bitte mit der Zeichnung vergleichen und bei Bedarf korrigieren."),
     formEditor({
       form: kantenForm(vorschlag.seite),
       vorschlag: kantenWerte(vorschlag),
@@ -1893,6 +1913,9 @@ el("berechnen").addEventListener("click", () => {
     }));
   dialog.showModal();
   el("dialog-inhalt").scrollTop = 0;
+  // Hinweis darüber: erst lesen und mit OK wegklicken, dann korrigieren
+  el("vorschlag-zeilen").textContent = `${m.kreis1.zeile + 1}–${m.kreis2.zeile + 1}`;
+  el("dialog-vorschlag").showModal();
 });
 
 // ---------- Tab „Konturformen“: Auswahlseite mit Kacheln, dann Editor der Form ----------
@@ -1958,6 +1981,11 @@ document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click
   if (b.dataset.tab === "konturformen" && !el("tab-konturformen").hidden) zeigeAuswahl();
   zeigeTab(b.dataset.tab);
 }));
+
+// Höhe der Kopfleiste: direkt darunter bleibt im Editor die Grafik stehen
+const leiste = document.querySelector(".leiste");
+new ResizeObserver(() => document.documentElement.style.setProperty("--leiste-hoehe", `${leiste.offsetHeight}px`))
+  .observe(leiste);
 
 setzeCode(zustand.code);
 
