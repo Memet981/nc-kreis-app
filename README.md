@@ -40,7 +40,7 @@ Die App öffnet mit diesem Tab. Zuerst die Form antippen. Jede Form gibt es zwei
 | Schräge Schulter | Schräge – Radius – Zylinder – Fase (90° = gerade Schulter) | %4016 |
 | Radius am Ende | Zylinder – Radius – Stirnseite | %4202 |
 | Flaschenhals | Schräge 1 – Radius 1 – Schräge 2 – Radius 2 – Zylinder – Fase | %6432 |
-| Ballig | großer Radius von Z Mitte bis Z Ende | %6305 |
+| Ballig | großer Radius von Z Mitte, dann Radius an der Stirnseite (0 = keiner) | %6305 |
 | Stufe | zwei Absätze mit Fase und Radius, dann Zylinder – Fase | %5636 |
 
 Dann die Werte aus der Zeichnung eingeben. Beim Antippen eines Feldes zeigt die Grafik, welches

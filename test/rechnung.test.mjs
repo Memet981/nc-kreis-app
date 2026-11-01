@@ -188,8 +188,21 @@ test("Stufe ergibt %5636", () => {
     "G01 X58.775 Z-0.5", "G01 X57.175 Z0.3"));
 });
 
-test("Ballig rechts und links ergibt %6305", () => {
-  const werte = { dM: 45, zM: -16.125, R: 398 };
+test("Ballig mit Radius am Ende ergibt %6305 (beide Kreise hintereinander)", () => {
+  const werte = { dM: 45, zM: -16.125, R: 398, R2: 1.15 };
+  const rechts = kontur("ballig", { ...werte, zE: 0.05 }, 1);
+  assert.equal(Kontur.ncBlock(rechts),
+    "G01 X45 Z-16.125\nG02 X44.429 Z-1.056 I-398 K0\nG02 X42.131 Z0.05 I-1.149 K-0.044");
+  assert.equal(Kontur.ncBlock(kontur("ballig", { ...werte, zE: -32.3 }, -1)),
+    "G01 X45 Z-16.125\nG03 X44.429 Z-31.194 I-398 K0\nG03 X42.131 Z-32.3 I-1.149 K0.044");
+  assert.ok(Kontur.radiusAbweichungGerundet(rechts).every(d => d <= 0.001));
+  // Tangential: Abstand der Mittelpunkte = R − R2
+  const [k1, k2] = rechts.kreise;
+  nah(398 - 1.15, Math.hypot(k2.mitte.z - k1.mitte.z, k2.mitte.r - k1.mitte.r), 1e-9);
+});
+
+test("Ballig ohne Radius am Ende: ein Bogen wie bisher", () => {
+  const werte = { dM: 45, zM: -16.125, R: 398, R2: 0 };
   assert.equal(Kontur.ncBlock(kontur("ballig", { ...werte, zE: 3 }, 1)), "G01 X45 Z-16.125\nG02 X44.08 Z3 I-398 K0");
   assert.equal(Kontur.ncBlock(kontur("ballig", { ...werte, zE: -35.25 }, -1)), "G01 X45 Z-16.125\nG03 X44.08 Z-35.25 I-398 K0");
 });
@@ -261,5 +274,9 @@ test("Fehler bei falschen Maßen", () => {
   const hk = { dS: 90.75, zP: -9.7, R: 0.7, dZ: 86.35, zE: 0, fS: 0.5, fE: 0.4, fw: 45, a: 0.2 };
   assert.throws(() => kontur("hohlkehle", { ...hk, R: 20 }, 1), /Radius Hohlkehle zu groß/);
   assert.throws(() => kontur("hohlkehle", hk, -1), /Bei „links“ muss Z Ende kleiner als Z Planfläche sein/);
-  assert.throws(() => kontur("ballig", { dM: 45, zM: 0, R: 5, zE: 10 }, 1), /Radius ballig ist kleiner/);
+  assert.throws(() => kontur("ballig", { dM: 45, zM: 0, R: 5, zE: 10, R2: 0 }, 1), /Radius ballig ist kleiner/);
+  const ballig = { dM: 45, zM: -16.125, R: 398, zE: 0.05 };
+  assert.throws(() => kontur("ballig", { ...ballig, R2: 20 }, 1), /Radius am Ende ist zu groß/);
+  assert.throws(() => kontur("ballig", { ...ballig, R2: 400 }, 1), /Radius am Ende muss kleiner/);
+  assert.throws(() => kontur("ballig", { ...ballig, R2: -1 }, 1), /nicht negativ/);
 });

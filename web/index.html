@@ -984,22 +984,49 @@ const Kontur = {
     } };
   },
 
-  /** Ein großer Bogen von Z Mitte (größter Ø) bis Z Ende. */
-  ballig({ dM, zM, R, zE }, s) {
+  /**
+   * Ein großer Bogen von Z Mitte (größter Ø) bis Z Ende. Mit Radius am Ende endet er am Tangentenpunkt,
+   * gleich dahinter kommt der kleine Kreis bis zur Stirnseite bei Z Ende.
+   */
+  ballig({ dM, zM, R, zE, R2 }, s) {
     pruefe(dM > 0, "Ø Mitte muss größer als 0 sein.");
     pruefe(R > 0, "Radius ballig muss größer als 0 sein.");
+    pruefeNichtNegativ([R2]);
     pruefeReihenfolge(s, zM, zE, "Z Mitte", "Z Ende");
-    const dz = Math.abs(zE - zM);
-    pruefe(dz < R, "Radius ballig ist kleiner als der Weg von Z Mitte bis Z Ende.");
-    const rM = dM / 2;
-    const rE = rM - R + Math.sqrt(R * R - dz * dz);
-    pruefe(rE > 0, "Der Bogen läuft unter die Drehmitte.");
-    const start = new P(zM, rM), ende = new P(zE, rE), mitte = new P(zM, rM - R);
+    const rM = dM / 2, art = s > 0 ? "G02" : "G03";
+    const start = new P(zM, rM), mitte = new P(zM, rM - R);
     const gerade = new P(zE, rM);
-    const ecken = [start, gerade];
-    const satz = { art: s > 0 ? "G02" : "G03", start, ende, mitte, i: -R, k: 0, ecke: 0 };
-    return { ecken, ergebnis: new KonturErgebnis(start, [satz], ecken), marken: {
-      dM: { linien: [[start, gerade]] }, zM: { punkt: start }, R: { bogen: start }, zE: { punkt: ende },
+    if (R2 === 0) {
+      const dz = Math.abs(zE - zM);
+      pruefe(dz < R, "Radius ballig ist kleiner als der Weg von Z Mitte bis Z Ende.");
+      const ende = new P(zE, mitte.r + Math.sqrt(R * R - dz * dz));
+      pruefe(ende.r > 0, "Der Bogen läuft unter die Drehmitte.");
+      const ecken = [start, gerade];
+      const satz = { art, start, ende, mitte, i: -R, k: 0, ecke: 0 };
+      return { ecken, ergebnis: new KonturErgebnis(start, [satz], ecken), marken: {
+        dM: { linien: [[start, gerade]] }, zM: { punkt: start }, R: { bogen: start }, zE: { punkt: ende },
+        R2: { punkt: ende },
+      } };
+    }
+    pruefe(R2 < R, "Radius am Ende muss kleiner als Radius ballig sein.");
+    // Mitte des kleinen Kreises: um R2 vor der Stirnseite, im Abstand R − R2 von der großen Mitte (innen tangential)
+    const zK = zE - s * R2;
+    pruefe(s * (zK - zM) > 0, "Radius am Ende ist zu groß für den Weg von Z Mitte bis Z Ende.");
+    const dz = Math.abs(zK - zM);
+    pruefe(dz < R - R2, "Radius ballig ist kleiner als der Weg von Z Mitte bis Z Ende.");
+    const mitte2 = new P(zK, mitte.r + Math.sqrt((R - R2) ** 2 - dz * dz));
+    pruefe(mitte2.r > 0, "Der Radius am Ende läuft unter die Drehmitte.");
+    const f = R2 / (R - R2);
+    const tangente = new P(mitte2.z + (mitte2.z - mitte.z) * f, mitte2.r + (mitte2.r - mitte.r) * f);
+    const ende = new P(zE, mitte2.r);
+    const ecken = [start, gerade, ende];   // Ø Mitte bis zur Stirnseite, dann Stirnseite herunter
+    const saetze = [
+      { art, start, ende: tangente, mitte, i: -R, k: 0, ecke: 0 },
+      { art, start: tangente, ende, mitte: mitte2, i: mitte2.r - tangente.r, k: mitte2.z - tangente.z, ecke: 1 },
+    ];
+    return { ecken, ergebnis: new KonturErgebnis(start, saetze, ecken), marken: {
+      dM: { linien: [[start, gerade]] }, zM: { punkt: start }, R: { bogen: start },
+      zE: { linien: [[gerade, ende]] }, R2: { bogen: gerade },
     } };
   },
 
@@ -1627,9 +1654,11 @@ const FORM_GRUPPEN = [
     ["dM", "Ø Mitte (größter Ø)", 45, 45],
     ["zM", "Z Mitte", -16.125, -16.125],
     ["R", "Radius ballig", 398, 398],
-    ["zE", "Z Ende", 3, -35.25],
-  ], bild: ["M8,86 V40 Q36.5,30 65,30 Q93.5,30 122,40 V86", "M65,30 Q93.5,30 122,40",
-    "M8,86 V40 Q36.5,30 65,30 Q93.5,30 122,40 V86 Z"] },
+    ["zE", "Z Ende (Stirnseite)", 0.05, -32.3],
+    ["R2", "Radius am Ende (0 = keiner)", 1.15, 1.15],
+  ], bild: ["M8,86 V48 Q8,39 17,37 Q41,30 65,30 Q89,30 113,37 Q122,39 122,48 V86",
+    "M65,30 Q89,30 113,37 Q122,39 122,48",
+    "M8,86 V48 Q8,39 17,37 Q41,30 65,30 Q89,30 113,37 Q122,39 122,48 V86 Z"] },
   { name: "Stufe", bau: "stufe", felder: [   // %5636
     ["dS", "Ø Schulter", 67.075, 67.075],
     ["zP1", "Z Planfläche 1", -20.2, -9.8],
