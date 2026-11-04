@@ -214,21 +214,22 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
   max-width: calc(100% - 32px);
 }
 .toast.sichtbar { opacity: 1; }
-/* PC, Tablet und Handy quer: nebeneinander statt untereinander */
-@media (min-width: 900px) {
+/* PC, Tablet und Handy quer: nebeneinander statt untereinander (Handys sind quer oft nur 780–870 px breit) */
+@media (min-width: 900px), (orientation: landscape) and (min-width: 640px) {
   .leiste h1, main, .dlg-inhalt > * { max-width: 1200px; }
   #formen-auswahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px 24px; align-items: start; }
   #formen-auswahl > p { grid-column: 1 / -1; }
-  .editor { display: grid; grid-template-columns: 3fr 2fr; gap: 10px 24px; align-items: start; }
+  .editor { display: grid; grid-template-columns: minmax(0, 3fr) minmax(380px, 2fr); gap: 10px 24px; align-items: start; }
+  .editor pre.code { white-space: pre; overflow-x: auto; }   /* ein NC-Satz bricht nie um (rechts mind. 380 px, sonst seitlich schieben) */
   .editor .grafik-halter { margin: 0; padding: 0; top: calc(var(--leiste-hoehe, 56px) + 16px); }
   .dlg-inhalt .editor .grafik-halter { top: 0; }
-  .editor .grafik-halter .grafik { height: min(560px, calc(100vh - var(--leiste-hoehe, 56px) - 120px)); }
+  .editor .grafik-halter .grafik { height: min(560px, calc(100svh - var(--leiste-hoehe, 56px) - 120px)); }
   .editor .eingabe { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
   .editor .eingabe > .feld { justify-content: flex-end; }   /* lange Beschriftung: Eingaben einer Reihe bleiben auf einer Linie */
   .editor .fest-rahmen { grid-column: 1 / -1; }
   #tab-code { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; align-items: start; }
-  #tab-code textarea { min-height: 400px; }
-  #tab-code .grafik { height: 400px; }
+  #tab-code textarea { min-height: min(400px, calc(100svh - 200px)); }
+  #tab-code .grafik { height: min(400px, calc(100svh - var(--leiste-hoehe, 56px) - 120px)); }
   #tab-code h2.abschnitt { margin-top: 0; }
 }
 </style>
