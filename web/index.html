@@ -232,6 +232,14 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
   #tab-code .grafik { height: min(400px, calc(100svh - var(--leiste-hoehe, 56px) - 120px)); }
   #tab-code h2.abschnitt { margin-top: 0; }
 }
+/* PC und Tablet quer: drei Bereiche im Editor – Grafik | Eingabefelder | NC-Sätze (Handy quer bleibt bei zwei) */
+@media (min-width: 1000px) {
+  .leiste h1, main, .dlg-inhalt > * { max-width: 1440px; }
+  .editor { grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr) minmax(380px, 1fr); }
+  .editor .felder-und-ergebnis { display: contents; }
+  .editor .ergebnis { position: sticky; top: calc(var(--leiste-hoehe, 56px) + 16px); }
+  .dlg-inhalt .editor .ergebnis { top: 0; }
+}
 </style>
 </head>
 <body>
@@ -1716,7 +1724,7 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
   const felder = [];   // Eingabefelder: { i, input }
 
   const grafik = new KonturGrafik();
-  const ergebnisBereich = h("div", { class: "stapel" });
+  const ergebnisBereich = h("div", { class: "stapel ergebnis" });
 
   // „X Maß bleibt fest“: zuletzt = letzter gültiger Wert von fest.feld, damit Zwischenstände wie „-“ nichts verschieben
   const fest = form.festhalten;
@@ -1818,9 +1826,10 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
     return fest && i === fest.feld ? h("div", { class: "fest-rahmen" }, feld, schalterZeile()) : feld;
   }));
   aktualisiere();
-  // Grafik bleibt beim Scrollen oben stehen, die Felder laufen darunter durch (breit: Grafik links, Felder rechts)
+  // Grafik bleibt beim Scrollen oben stehen, die Felder laufen darunter durch
+  // (breit: Grafik links, Felder rechts; ab 1000 px: Grafik | Felder | NC-Sätze)
   return h("div", { class: "stapel editor" }, h("div", { class: "grafik-halter" }, grafik.wurzel),
-    h("div", { class: "stapel" }, eingabeBereich, ergebnisBereich));
+    h("div", { class: "stapel felder-und-ergebnis" }, eingabeBereich, ergebnisBereich));
 }
 
 // ---------- Tab „Code“ (wie ui/CodeScreen.kt) ----------

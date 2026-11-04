@@ -9,7 +9,7 @@ einmal an. Andere Steuerungen können I/K anders rechnen.
 
 Läuft im Browser auf Android und iPhone, ohne Installation. Gerechnet wird nur auf dem Handy,
 es wird nichts an einen Server geschickt.
-Am PC, Tablet und Handy quer stehen Grafik und Felder nebeneinander.
+Am PC und Tablet quer stehen Grafik, Felder und NC-Sätze nebeneinander, am Handy quer Grafik und Felder.
 
 ## Auf dem Handy wie eine App
 Link öffnen, dann:
