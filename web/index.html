@@ -214,6 +214,23 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
   max-width: calc(100% - 32px);
 }
 .toast.sichtbar { opacity: 1; }
+/* PC, Tablet und Handy quer: nebeneinander statt untereinander */
+@media (min-width: 900px) {
+  .leiste h1, main, .dlg-inhalt > * { max-width: 1200px; }
+  #formen-auswahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px 24px; align-items: start; }
+  #formen-auswahl > p { grid-column: 1 / -1; }
+  .editor { display: grid; grid-template-columns: 3fr 2fr; gap: 10px 24px; align-items: start; }
+  .editor .grafik-halter { margin: 0; padding: 0; top: calc(var(--leiste-hoehe, 56px) + 16px); }
+  .dlg-inhalt .editor .grafik-halter { top: 0; }
+  .editor .grafik-halter .grafik { height: min(560px, calc(100vh - var(--leiste-hoehe, 56px) - 120px)); }
+  .editor .eingabe { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .editor .eingabe > .feld { justify-content: flex-end; }   /* lange Beschriftung: Eingaben einer Reihe bleiben auf einer Linie */
+  .editor .fest-rahmen { grid-column: 1 / -1; }
+  #tab-code { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; align-items: start; }
+  #tab-code textarea { min-height: 400px; }
+  #tab-code .grafik { height: 400px; }
+  #tab-code h2.abschnitt { margin-top: 0; }
+}
 </style>
 </head>
 <body>
@@ -221,29 +238,34 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
 
 <main>
   <section id="tab-code" class="stapel" hidden>
-    <p id="anleitung" class="klein">Code holen: Google Lens öffnen (am iPhone die Kamera) → Bildschirm der Steuerung
-      fotografieren → Text markieren → <b>Kopieren</b> → hier <b>Einfügen</b>.</p>
-    <div class="reihe">
-      <button class="knopf voll" id="einfuegen" type="button">Einfügen</button>
-      <button class="knopf" id="bereinigen" type="button">Bereinigen</button>
-      <button class="knopf" id="leeren" type="button">Leeren</button>
+    <!-- breit: links Eingabe, rechts Grafik und Kreisprüfung -->
+    <div class="stapel">
+      <p id="anleitung" class="klein">Code holen: Google Lens öffnen (am iPhone die Kamera) → Bildschirm der Steuerung
+        fotografieren → Text markieren → <b>Kopieren</b> → hier <b>Einfügen</b>.</p>
+      <div class="reihe">
+        <button class="knopf voll" id="einfuegen" type="button">Einfügen</button>
+        <button class="knopf" id="bereinigen" type="button">Bereinigen</button>
+        <button class="knopf" id="leeren" type="button">Leeren</button>
+      </div>
+      <div id="meldung" class="klein" hidden></div>
+      <label class="feld">NC-Code (Lesefehler hier korrigieren)
+        <textarea id="code" spellcheck="false" autocapitalize="characters" autocomplete="off" autocorrect="off"
+          wrap="off" placeholder="Hier den NC-Code einfügen …"></textarea>
+      </label>
+      <button class="knopf voll" id="berechnen" type="button">Berechnen</button>
+      <p id="hinweis" class="fehlertext" hidden></p>
+      <div id="geaendert" class="karte ok" hidden></div>
     </div>
-    <div id="meldung" class="klein" hidden></div>
-    <label class="feld">NC-Code (Lesefehler hier korrigieren)
-      <textarea id="code" spellcheck="false" autocapitalize="characters" autocomplete="off" autocorrect="off"
-        wrap="off" placeholder="Hier den NC-Code einfügen …"></textarea>
-    </label>
-    <button class="knopf voll" id="berechnen" type="button">Berechnen</button>
-    <p id="hinweis" class="fehlertext" hidden></p>
-    <div id="geaendert" class="karte ok" hidden></div>
-    <div id="code-grafik-bereich" class="stapel" hidden>
-      <h2 class="abschnitt">Grafik</h2>
+    <div class="stapel">
+      <div id="code-grafik-bereich" class="stapel" hidden>
+        <h2 class="abschnitt">Grafik</h2>
+      </div>
+      <div id="kreise-bereich" class="stapel" hidden>
+        <h2 class="abschnitt">Kreisprüfung</h2>
+        <div id="kreise" class="stapel"></div>
+      </div>
+      <div id="programm-hinweise" class="stapel"></div>
     </div>
-    <div id="kreise-bereich" class="stapel" hidden>
-      <h2 class="abschnitt">Kreisprüfung</h2>
-      <div id="kreise" class="stapel"></div>
-    </div>
-    <div id="programm-hinweise" class="stapel"></div>
   </section>
 
   <section id="tab-konturformen">
@@ -1790,13 +1812,14 @@ function formEditor({ form, vorschlag, uebernehmenText, onUebernehmen }) {
   }
 
   // Schalter direkt unter seinem Feld, beide in einem Rahmen
-  const eingabeBereich = h("div", { class: "stapel" }, ...form.felder.map((f, i) => {
+  const eingabeBereich = h("div", { class: "stapel eingabe" }, ...form.felder.map((f, i) => {
     const feld = zahlFeld(i, f.titel);
     return fest && i === fest.feld ? h("div", { class: "fest-rahmen" }, feld, schalterZeile()) : feld;
   }));
   aktualisiere();
-  // Grafik bleibt beim Scrollen oben stehen, die Felder laufen darunter durch
-  return h("div", { class: "stapel" }, h("div", { class: "grafik-halter" }, grafik.wurzel), eingabeBereich, ergebnisBereich);
+  // Grafik bleibt beim Scrollen oben stehen, die Felder laufen darunter durch (breit: Grafik links, Felder rechts)
+  return h("div", { class: "stapel editor" }, h("div", { class: "grafik-halter" }, grafik.wurzel),
+    h("div", { class: "stapel" }, eingabeBereich, ergebnisBereich));
 }
 
 // ---------- Tab „Code“ (wie ui/CodeScreen.kt) ----------
@@ -1990,10 +2013,11 @@ function zeigeForm(form) {
 }
 
 for (const g of FORM_GRUPPEN) {
-  auswahl.append(h("h2", { class: "abschnitt" }, g.name), h("div", { class: "kacheln" }, ...g.formen.map(f =>
+  // Überschrift und Kacheln zusammen: breit steht jede Gruppe in einer eigenen Spalte
+  auswahl.append(h("div", { class: "stapel" }, h("h2", { class: "abschnitt" }, g.name), h("div", { class: "kacheln" }, ...g.formen.map(f =>
     h("button", { class: "kachel", type: "button", "aria-label": f.name, onclick: () => zeigeForm(f) },
       kachelBild(g.bild, f.seite < 0),
-      h("span", null, f.seite < 0 ? `← links · ${f.g}` : `rechts · ${f.g} →`)))));
+      h("span", null, f.seite < 0 ? `← links · ${f.g}` : `rechts · ${f.g} →`))))));
 }
 
 // ---------- Tabs ----------

@@ -9,6 +9,7 @@ einmal an. Andere Steuerungen können I/K anders rechnen.
 
 Läuft im Browser auf Android und iPhone, ohne Installation. Gerechnet wird nur auf dem Handy,
 es wird nichts an einen Server geschickt.
+Am PC, Tablet und Handy quer (ab 900 px Breite) stehen Grafik und Felder nebeneinander.
 
 ## Auf dem Handy wie eine App
 Link öffnen, dann:
