@@ -234,8 +234,11 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
 }
 /* PC und Tablet quer: drei Bereiche im Editor – Grafik | Eingabefelder | NC-Sätze (Handy quer bleibt bei zwei) */
 @media (min-width: 1000px) {
-  .leiste h1, main, .dlg-inhalt > * { max-width: 1440px; }
-  .editor { grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr) minmax(380px, 1fr); }
+  .leiste h1, main, .dlg-inhalt > * { max-width: 1800px; }
+  /* Grafik bekommt den größten Teil der Breite und darf bis 900 px hoch werden –
+     aber nur so hoch, dass sie oben auf der Seite ganz über der Leiste unten (Konturformen | Code) zu sehen ist */
+  .editor { grid-template-columns: minmax(0, 2fr) minmax(220px, 0.8fr) minmax(380px, 1fr); }
+  .editor .grafik-halter .grafik { height: min(900px, calc(100svh - var(--leiste-hoehe, 56px) - 185px), 60vw); }
   .editor .felder-und-ergebnis { display: contents; }
   .editor .ergebnis { position: sticky; top: calc(var(--leiste-hoehe, 56px) + 16px); }
   .dlg-inhalt .editor .ergebnis { top: 0; }
