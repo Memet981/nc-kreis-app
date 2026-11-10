@@ -96,6 +96,12 @@ p { margin: 0; }
 .karte.ok { background: var(--ok-flaeche); border-color: transparent; }
 .karte.fehler { background: var(--fehler-flaeche); border-color: transparent; }
 .karte.grau { background: var(--flaeche2); border-color: transparent; }
+.steuerung-info { display: flex; align-items: flex-start; gap: 10px; }
+.steuerung-info .i {
+  flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primaer); color: var(--primaer-text);
+  font: italic 600 14px/22px Georgia, serif; text-align: center;
+}
+.steuerung-info p + p { margin-top: 2px; }
 .karte-kopf { display: flex; align-items: center; gap: 8px; }
 .karte-kopf h3 { flex: 1; margin: 0; font-size: 15px; font-weight: 600; }
 .karte-kopf .text-knopf { align-self: center; margin: -8px -6px -8px 0; }
@@ -219,7 +225,7 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
 @media (min-width: 900px) and (min-height: 500px) {
   .leiste h1, main, .dlg-inhalt > * { max-width: 1200px; }
   #formen-auswahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px 24px; align-items: start; }
-  #formen-auswahl > p { grid-column: 1 / -1; }
+  #formen-auswahl > p, #formen-auswahl > .steuerung-info { grid-column: 1 / -1; }
   .editor { display: grid; grid-template-columns: minmax(0, 3fr) minmax(380px, 2fr); gap: 10px 24px; align-items: start; }
   .editor pre.code { white-space: pre; overflow-x: auto; }   /* ein NC-Satz bricht nie um (rechts mind. 380 px, sonst seitlich schieben) */
   .editor .grafik-halter { margin: 0; padding: 0; top: calc(var(--leiste-hoehe, 56px) + 16px); }
@@ -283,6 +289,13 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
 
   <section id="tab-konturformen">
     <div id="formen-auswahl" class="stapel">
+      <div class="karte grau steuerung-info">
+        <span class="i" aria-hidden="true">i</span>
+        <div>
+          <p>NC Kreis ist für <b>Studer-Schleifmaschinen</b> mit <b>Siemens SINUMERIK 3G</b>.</p>
+          <p class="klein">Andere Steuerungen können I/K anders rechnen.</p>
+        </div>
+      </div>
       <p class="klein">Form antippen. Links fährt in Z−, rechts in Z+.</p>
     </div>
     <div id="formen-editor" hidden></div>
@@ -306,13 +319,6 @@ dialog.hinweis .knopf { width: 100%; margin-top: 6px; }
     <button class="text-knopf" id="dialog-abbrechen" type="button">Abbrechen</button>
   </div>
   <div class="dlg-inhalt" id="dialog-inhalt"></div>
-</dialog>
-
-<dialog id="dialog-hinweis" class="hinweis">
-  <h2>Willkommen</h2>
-  <p>NC Kreis ist für <b>Studer-Schleifmaschinen</b> mit <b>Siemens SINUMERIK 3G</b>.</p>
-  <p class="klein">Andere Steuerungen können I/K anders rechnen.</p>
-  <form method="dialog"><button class="knopf voll" type="submit">OK</button></form>
 </dialog>
 
 <dialog id="dialog-vorschlag" class="hinweis">
@@ -2055,11 +2061,6 @@ new ResizeObserver(() => document.documentElement.style.setProperty("--leiste-ho
   .observe(leiste);
 
 setzeCode(zustand.code);
-
-// Beim ersten Start einmal zeigen, für welche Steuerung die App ist
-const dialogHinweis = el("dialog-hinweis");
-dialogHinweis.addEventListener("close", () => speicher.schreib("nc-kreis-hinweis", "1"));
-if (!speicher.lies("nc-kreis-hinweis")) dialogHinweis.showModal();
 
 // Offline: Seite im Browser speichern (nur über http/https, nicht als einzelne Datei)
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
