@@ -38,6 +38,7 @@ Die App öffnet mit diesem Tab. Zuerst die Form antippen. Jede Form gibt es zwei
 |---|---|---|
 | Kante | Zylinder – Radius – Schräge – Radius – Planfläche | Beispiel 87.98, %6357 |
 | Hohlkehle | Fase – Schulter – Radius – Zylinder – Fase | %6251, %4214 |
+| Hohlkehle mit Flanke | Schulter – Radius – Zylinder (Breite) – Kante – schräge Flanke (Winkel zur X-Achse) bis Ø Ende | Skizze Ø60, R0.5, 0.2×45°, 15° |
 | Schräge Schulter | Schräge – Radius – Zylinder – Fase (90° = gerade Schulter) | %4016 |
 | Radius am Ende | Zylinder – Radius – Stirnseite | %4202 |
 | Flaschenhals | Schräge 1 – Radius 1 – Schräge 2 – Radius 2 – Zylinder – Fase | %6432 |
@@ -48,6 +49,7 @@ Dann die Werte aus der Zeichnung eingeben. Beim Antippen eines Feldes zeigt die 
 Maß gemeint ist. Ergebnis als fertige NC-Sätze mit Kreisprüfung.
 Die **±**-Taste neben jedem Feld dreht das Vorzeichen (die iPhone-Zahlentastatur hat kein Minus).
 - Fasen: Länge in Z, dazu ein Fasenwinkel zur Z-Achse (meist 45°, manchmal 30°).
+- Hohlkehle mit Flanke: Breite = Planfläche bis zur scharfen Ecke Zylinder/Flanke. Die Kante beginnt um ihre Länge vor dieser Ecke auf dem Zylinder und endet auf der Flanke.
 - Auslauf: Die letzte Linie (Fase oder Zylinder) läuft um diesen Wert über Z Ende hinaus.
 - „‹ Alle Formen“ oder nochmal auf „Konturformen“ tippen führt zurück zur Auswahl.
 

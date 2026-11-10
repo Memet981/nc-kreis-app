@@ -958,6 +958,52 @@ const Kontur = {
     } };
   },
 
+  /**
+   * Fase – Schulter (Planfläche) – Hohlkehle – kurzer Zylinder (Breite) – Kante – schräge Flanke bis Ø Ende.
+   * Breite: Planfläche bis zur scharfen Ecke Zylinder/Flanke. Flanke: Winkel zur X-Achse (0 = gerade
+   * Planfläche), sie läuft in Fahrrichtung nach unten weg. Kante: Länge in Z am Zylinder, Fasenwinkel
+   * zur Z-Achse, endet auf der Flanke.
+   */
+  hohlkehleFlanke({ dS, zP, R, dZ, b, fK, wF, dE, fS, fw }, s) {
+    pruefe(dZ > 0 && dS > dZ, "Ø Schulter muss größer als Ø Zylinder sein.");
+    pruefe(dE > 0 && dE < dZ, "Ø Ende Flanke muss kleiner als Ø Zylinder sein.");
+    pruefe(b > 0, "Breite muss größer als 0 sein.");
+    pruefeNichtNegativ([R, fK, fS]);
+    pruefe(wF >= 0 && wF < 90, "Winkel Flanke muss zwischen 0 und 90° liegen (0 = gerade).");
+    const tw = fasenTangens(fw, fS, fK);
+    const tF = Math.tan(zuRad(wF));
+    const rS = dS / 2, rZ = dZ / 2, rE = dE / 2;
+    pruefe(fS * tw < rS - rZ, "Fase Schulter ist höher als die Schulter.");
+    const zK = zP + s * b;   // scharfe Ecke Zylinder/Flanke
+    const kanteSpitz = new P(zK, rZ);
+    const k = konturBauer();
+    const schulter = schulterAnfang(k, s, rS, zP, fS, tw);
+    const ecke = k.dazu(new P(zP, rZ), R, "Radius Hohlkehle");
+    let kante = null;
+    if (fK > 0) {
+      pruefe(tw * tF < 1, "Kante und Flanke laufen nicht zusammen – Fasenwinkel oder Winkel Flanke prüfen.");
+      const u = fK / (1 - tw * tF);   // Weg der Kante in Z bis zur Flanke
+      pruefe(u * tw < rZ - rE, "Kante ist höher als die Flanke.");
+      const a = k.dazu(new P(zK - s * fK, rZ));
+      const e = k.dazu(new P(zK - s * fK + s * u, rZ - u * tw));
+      kante = [a, e];
+    } else k.dazu(kanteSpitz);
+    const ende = k.dazu(new P(zK + s * (rZ - rE) * tF, rE));
+    const flankeOben = kante ? kante[1] : kanteSpitz;
+    return { ...k, marken: {
+      dS: { punkt: schulter.oben },
+      zP: { linien: [[schulter.unten, ecke]] },
+      R: { bogen: ecke },
+      dZ: { linien: [[ecke, kante ? kante[0] : kanteSpitz]] },
+      b: { linien: [[ecke, kanteSpitz]] },
+      fK: kante ? { linien: [kante] } : { punkt: kanteSpitz },
+      wF: { linien: [[flankeOben, ende]] },
+      dE: { punkt: ende },
+      fS: schulter.fase ? { linien: [schulter.fase] } : { punkt: schulter.oben },
+      fw: { linien: [schulter.fase, kante].filter(Boolean) },
+    } };
+  },
+
   /** Schräge Schulter – Radius – Zylinder – Fase. Winkel der Schräge zur Z-Achse, 90° = gerade Planfläche. */
   schraegeSchulter({ dS, wS, zU, R, dZ, zE, fE, fw, a }, s) {
     pruefe(dZ > 0 && dS > dZ, "Ø Schulter muss größer als Ø Zylinder sein.");
@@ -1662,6 +1708,18 @@ const FORM_GRUPPEN = [
     ["fE", "Fase Ende, Länge in Z (0 = keine)", 0.4, 0.6],
     ...FASEN,
   ], bild: ["M6,14 H40 L46,20 V40 Q46,50 56,50 H108 L114,56 V86", "M46,40 Q46,50 56,50"] },
+  { name: "Hohlkehle mit Flanke", bau: "hohlkehleFlanke", felder: [   // Skizze 11.11.2026
+    ["dS", "Ø Schulter", 66, 66],
+    ["zP", "Z Planfläche", -5, 0],
+    ["R", "Radius Hohlkehle (0 = scharfe Ecke)", 0.5, 0.5],
+    ["dZ", "Ø Zylinder", 60, 60],
+    ["b", "Breite (Planfläche bis scharfe Kante)", 5, 5],
+    ["fK", "Kante, Länge in Z (0 = keine)", 0.2, 0.2],
+    ["wF", "Winkel Flanke zur X-Achse in ° (0 = gerade)", 15, 15],
+    ["dE", "Ø Ende Flanke", 54, 54],
+    ["fS", "Fase Schulter, Länge in Z (0 = keine)", 0, 0],
+    ["fw", "Fasenwinkel zur Z-Achse in °", 45, 45],
+  ], bild: ["M6,14 H40 V42 Q40,50 48,50 H92 L96,54 L104,86", "M40,42 Q40,50 48,50"] },
   { name: "Schräge Schulter", bau: "schraegeSchulter", felder: [   // %4016
     ["dS", "Ø Schulter", 26.935, 26.935],
     ["wS", "Winkel Schräge zur Z-Achse in ° (90 = gerade)", 75, 75],
