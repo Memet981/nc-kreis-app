@@ -281,20 +281,20 @@ test("Fehler bei falschen Maßen", () => {
   assert.throws(() => kontur("ballig", { ...ballig, R2: -1 }, 1), /nicht negativ/);
 });
 
-test("Hohlkehle mit Flanke links und rechts (Skizze Ø60, Breite 5, R0.5, Kante 0.2×45°, Flanke 15°)", () => {
-  const w = { dS: 66, R: 0.5, dZ: 60, b: 5, fK: 0.2, wF: 15, dE: 54, fS: 0, fw: 45 };
+test("Hohlkehle mit Flanke links und rechts (Skizze Ø60, Breite 5, R0.5, Kante 0.2×45°, Flanke 15°, Tiefe 1)", () => {
+  const w = { dS: 66, R: 0.5, dZ: 60, b: 5, fK: 0.2, wF: 15, tF: 1, fS: 0, fw: 45 };
   const links = kontur("hohlkehleFlanke", { ...w, zP: 0 }, -1);
   const rechts = kontur("hohlkehleFlanke", { ...w, zP: -5 }, 1);
   assert.equal(Kontur.ncBlock(links), satzListe(
-    "G01 X66 Z0", "G01 X61 Z0", "G02 X60 Z-0.5 I0 K-0.5", "G01 X60 Z-4.8", "G01 X59.454 Z-5.073", "G01 X54 Z-5.804"));
+    "G01 X66 Z0", "G01 X61 Z0", "G02 X60 Z-0.5 I0 K-0.5", "G01 X60 Z-4.8", "G01 X59.454 Z-5.073", "G01 X58 Z-5.268"));
   assert.equal(Kontur.ncBlock(rechts), satzListe(
-    "G01 X66 Z-5", "G01 X61 Z-5", "G03 X60 Z-4.5 I0 K0.5", "G01 X60 Z-0.2", "G01 X59.454 Z0.073", "G01 X54 Z0.804"));
+    "G01 X66 Z-5", "G01 X61 Z-5", "G03 X60 Z-4.5 I0 K0.5", "G01 X60 Z-0.2", "G01 X59.454 Z0.073", "G01 X58 Z0.268"));
   assert.ok(Kontur.radiusAbweichungGerundet(links).every(d => d <= 0.001));
   // Kante endet genau auf der Flanke: Flanke 15° zur X-Achse durch die scharfe Ecke Z-5 / Ø60
   const kanteEnde = links.saetze[3].ende;
   nah(-5 - (30 - kanteEnde.r) * Math.tan(15 * Math.PI / 180), kanteEnde.z, 1e-9);
   // Ohne Kante und 0° = gerade Planfläche
   const gerade = kontur("hohlkehleFlanke", { ...w, zP: 0, fK: 0, wF: 0 }, -1);
-  assert.equal(Kontur.ncBlock(gerade).split("\n").slice(-2).join("|"), "G01 X60 Z-5|G01 X54 Z-5");
-  assert.throws(() => kontur("hohlkehleFlanke", { ...w, zP: 0, dE: 61 }, -1), /Ø Ende Flanke/);
+  assert.equal(Kontur.ncBlock(gerade).split("\n").slice(-2).join("|"), "G01 X60 Z-5|G01 X58 Z-5");
+  assert.throws(() => kontur("hohlkehleFlanke", { ...w, zP: 0, tF: 0 }, -1), /Tiefe Flanke/);
 });

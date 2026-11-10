@@ -962,17 +962,17 @@ const Kontur = {
    * Fase – Schulter (Planfläche) – Hohlkehle – kurzer Zylinder (Breite) – Kante – schräge Flanke bis Ø Ende.
    * Breite: Planfläche bis zur scharfen Ecke Zylinder/Flanke. Flanke: Winkel zur X-Achse (0 = gerade
    * Planfläche), sie läuft in Fahrrichtung nach unten weg. Kante: Länge in Z am Zylinder, Fasenwinkel
-   * zur Z-Achse, endet auf der Flanke.
+   * zur Z-Achse, endet auf der Flanke. Tiefe Flanke: radial (im Radius) von Ø Zylinder bis zum Ende der Flanke.
    */
-  hohlkehleFlanke({ dS, zP, R, dZ, b, fK, wF, dE, fS, fw }, s) {
+  hohlkehleFlanke({ dS, zP, R, dZ, b, fK, wF, tF: tiefe, fS, fw }, s) {
     pruefe(dZ > 0 && dS > dZ, "Ø Schulter muss größer als Ø Zylinder sein.");
-    pruefe(dE > 0 && dE < dZ, "Ø Ende Flanke muss kleiner als Ø Zylinder sein.");
+    pruefe(tiefe > 0 && tiefe < dZ / 2, "Tiefe Flanke muss größer als 0 und kleiner als der halbe Ø Zylinder sein.");
     pruefe(b > 0, "Breite muss größer als 0 sein.");
     pruefeNichtNegativ([R, fK, fS]);
     pruefe(wF >= 0 && wF < 90, "Winkel Flanke muss zwischen 0 und 90° liegen (0 = gerade).");
     const tw = fasenTangens(fw, fS, fK);
     const tF = Math.tan(zuRad(wF));
-    const rS = dS / 2, rZ = dZ / 2, rE = dE / 2;
+    const rS = dS / 2, rZ = dZ / 2, rE = rZ - tiefe;   // Tiefe radial ab Ø Zylinder
     pruefe(fS * tw < rS - rZ, "Fase Schulter ist höher als die Schulter.");
     const zK = zP + s * b;   // scharfe Ecke Zylinder/Flanke
     const kanteSpitz = new P(zK, rZ);
@@ -998,7 +998,7 @@ const Kontur = {
       b: { linien: [[ecke, kanteSpitz]] },
       fK: kante ? { linien: [kante] } : { punkt: kanteSpitz },
       wF: { linien: [[flankeOben, ende]] },
-      dE: { punkt: ende },
+      tF: { linien: [[new P(zK, rZ), new P(zK, rE)]] },
       fS: schulter.fase ? { linien: [schulter.fase] } : { punkt: schulter.oben },
       fw: { linien: [schulter.fase, kante].filter(Boolean) },
     } };
@@ -1716,7 +1716,7 @@ const FORM_GRUPPEN = [
     ["b", "Breite (Planfläche bis scharfe Kante)", 5, 5],
     ["fK", "Kante, Länge in Z (0 = keine)", 0.2, 0.2],
     ["wF", "Winkel Flanke zur X-Achse in ° (0 = gerade)", 15, 15],
-    ["dE", "Ø Ende Flanke", 54, 54],
+    ["tF", "Tiefe Flanke ab Ø Zylinder (radial)", 1, 1],
     ["fS", "Fase Schulter, Länge in Z (0 = keine)", 0, 0],
     ["fw", "Fasenwinkel zur Z-Achse in °", 45, 45],
   ], bild: ["M6,14 H40 V42 Q40,50 48,50 H92 L96,54 L104,86", "M40,42 Q40,50 48,50"] },

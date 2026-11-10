@@ -38,7 +38,7 @@ Die App öffnet mit diesem Tab. Zuerst die Form antippen. Jede Form gibt es zwei
 |---|---|---|
 | Kante | Zylinder – Radius – Schräge – Radius – Planfläche | Beispiel 87.98, %6357 |
 | Hohlkehle | Fase – Schulter – Radius – Zylinder – Fase | %6251, %4214 |
-| Hohlkehle mit Flanke | Schulter – Radius – Zylinder (Breite) – Kante – schräge Flanke (Winkel zur X-Achse) bis Ø Ende | Skizze Ø60, R0.5, 0.2×45°, 15° |
+| Hohlkehle mit Flanke | Schulter – Radius – Zylinder (Breite) – Kante – schräge Flanke (Winkel zur X-Achse), Tiefe radial ab Ø Zylinder | Skizze Ø60, R0.5, 0.2×45°, 15°, Tiefe 1 |
 | Schräge Schulter | Schräge – Radius – Zylinder – Fase (90° = gerade Schulter) | %4016 |
 | Radius am Ende | Zylinder – Radius – Stirnseite | %4202 |
 | Flaschenhals | Schräge 1 – Radius 1 – Schräge 2 – Radius 2 – Zylinder – Fase | %6432 |
