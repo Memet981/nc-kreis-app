@@ -1734,11 +1734,11 @@ const FASEN = [
   ["a", "Auslauf über Z Ende", 0.2, 0.2],
 ];
 
-/** Formen für die Auswahlseite; Vorgaben aus den Studer-Programmen. bild: Linie und Radien (SVG, 130×90). */
+/** Formen für die Auswahlseite, angezeigt nur mit Nummer (nr bleibt fest, neue Formen hinten anhängen); Vorgaben aus den Studer-Programmen. bild: Linie und Radien (SVG, 130×90). */
 const FORM_GRUPPEN = [
-  { name: "Kante", bild: ["M8,22 H68 Q76,22 82.7,26.3 L104.1,40.2 Q110,44 110,51 V86",
+  { nr: 1, name: "Kante", bild: ["M8,22 H68 Q76,22 82.7,26.3 L104.1,40.2 Q110,44 110,51 V86",
     "M68,22 Q76,22 82.7,26.3 M104.1,40.2 Q110,44 110,51"] },
-  { name: "Hohlkehle", bau: "hohlkehle", felder: [   // %6251, %4214
+  { nr: 2, name: "Hohlkehle", bau: "hohlkehle", felder: [   // %6251, %4214
     ["dS", "Ø Schulter", 90.75, 71],
     ["zP", "Z Planfläche", -9.7, -20.9],
     ["R", "Radius Hohlkehle (0 = scharfe Ecke)", 0.7, 0.5],
@@ -1748,7 +1748,7 @@ const FORM_GRUPPEN = [
     ["fE", "Fase Ende, Länge in Z (0 = keine)", 0.4, 0.6],
     ...FASEN,
   ], bild: ["M6,14 H40 L46,20 V40 Q46,50 56,50 H108 L114,56 V86", "M46,40 Q46,50 56,50"] },
-  { name: "Hohlkehle mit Flanke", bau: "hohlkehleFlanke", felder: [   // Skizze 11.11.2026
+  { nr: 3, name: "Hohlkehle mit Flanke", bau: "hohlkehleFlanke", felder: [   // Skizze 11.11.2026
     ["dS", "Ø Schulter", 66, 66],
     ["zP", "Z Planfläche", -5, 0],
     ["R", "Radius Hohlkehle (0 = scharfe Ecke)", 0.5, 0.5],
@@ -1761,7 +1761,7 @@ const FORM_GRUPPEN = [
     ["fS", "Fase Schulter, Länge in Z (0 = keine)", 0, 0],
     ["fw", "Fasenwinkel zur Z-Achse in °", 45, 45],
   ], bild: ["M6,14 H40 V42 Q40,50 48,50 H92 L96,54 L104,86", "M40,42 Q40,50 48,50"] },
-  { name: "Einstich mit Flanke", bau: "einstichFlanke", felder: [   // Axiallager 295316-3, N85–N120
+  { nr: 4, name: "Einstich mit Flanke", bau: "einstichFlanke", felder: [   // Axiallager 295316-3, N85–N120
     ["dS", "Ø Anfang Planfläche", 60.775, 60.775],
     ["zP", "Z Planfläche", -5.025, 5.025],
     ["R", "Radius Hohlkehle (0 = scharfe Ecke)", 0.4, 0.4],
@@ -1772,7 +1772,7 @@ const FORM_GRUPPEN = [
     ["wF", "Winkel Flanke zur X-Achse in ° (0 = gerade)", 15, 15],
     ["dE", "Ø Ende Flanke", 55.536, 55.536],
   ], bild: ["M40,22 V42 Q40,50 48,50 H92 L96,54 L104,86", "M40,42 Q40,50 48,50"] },
-  { name: "Schräge Schulter", bau: "schraegeSchulter", felder: [   // %4016
+  { nr: 5, name: "Schräge Schulter", bau: "schraegeSchulter", felder: [   // %4016
     ["dS", "Ø Schulter", 26.935, 26.935],
     ["wS", "Winkel Schräge zur Z-Achse in ° (90 = gerade)", 75, 75],
     ["zU", "Z Ecke Schräge/Zylinder", -1.961, -18.039],
@@ -1782,12 +1782,12 @@ const FORM_GRUPPEN = [
     ["fE", "Fase Ende, Länge in Z (0 = keine)", 0.3, 0.3],
     ...FASEN,
   ], bild: ["M6,14 H34 L52.4,44 Q56,50 63,50 H108 L114,56 V86", "M52.4,44 Q56,50 63,50"] },
-  { name: "Radius am Ende", bau: "radiusAmEnde", felder: [   // %4202
+  { nr: 6, name: "Radius am Ende", bau: "radiusAmEnde", felder: [   // %4202
     ["dZ", "Ø Zylinder", 11.97, 11.97],
     ["zS", "Z Stirnseite", 0, -20],
     ["R", "Radius", 0.8, 0.8],
   ], bild: ["M8,30 H96 Q110,30 110,44 V86", "M96,30 Q110,30 110,44"] },
-  { name: "Flaschenhals", bau: "flaschenhals", festhalten: FESTHALTEN_FLASCHENHALS, felder: [   // %6432
+  { nr: 7, name: "Flaschenhals", bau: "flaschenhals", festhalten: FESTHALTEN_FLASCHENHALS, felder: [   // %6432
     ["dG", "Ø groß", 53.92, 53.92],
     ["zO", "Z Ecke oben (Ø groß/Schräge 1)", -103.28, -6.72],
     ["w1", "Winkel Schräge 1 zur Z-Achse in °", 40.882, 40.882],
@@ -1801,7 +1801,7 @@ const FORM_GRUPPEN = [
     ...FASEN,
   ], bild: ["M6,12 H26 L45,40.5 Q50,48 58.8,49.8 L94.1,56.8 Q100,58 106,58 H116 L120,62 V86",
     "M45,40.5 Q50,48 58.8,49.8 M94.1,56.8 Q100,58 106,58"] },
-  { name: "Ballig", bau: "ballig", felder: [   // %6305
+  { nr: 8, name: "Ballig", bau: "ballig", felder: [   // %6305
     ["dM", "Ø Mitte (größter Ø)", 45, 45],
     ["zM", "Z Mitte", -16.125, -16.125],
     ["R", "Radius ballig", 398, 398],
@@ -1810,7 +1810,7 @@ const FORM_GRUPPEN = [
   ], bild: ["M8,86 V48 Q8,39 17,37 Q41,30 65,30 Q89,30 113,37 Q122,39 122,48 V86",
     "M65,30 Q89,30 113,37 Q122,39 122,48",
     "M8,86 V48 Q8,39 17,37 Q41,30 65,30 Q89,30 113,37 Q122,39 122,48 V86 Z"] },
-  { name: "Stufe", bau: "stufe", felder: [   // %5636
+  { nr: 9, name: "Stufe", bau: "stufe", felder: [   // %5636
     ["dS", "Ø Schulter", 67.075, 67.075],
     ["zP1", "Z Planfläche 1", -20.2, -9.8],
     ["R1", "Radius 1 (0 = scharfe Ecke)", 0.1, 0.1],
@@ -1830,7 +1830,7 @@ for (const g of FORM_GRUPPEN) {
   // Links zuerst: In der Auswahl steht „links“ in der linken Spalte
   g.formen = [-1, 1].map(s => g.bau ? konturForm(g.name, g.bau, g.felder, s, g.festhalten) : kantenForm(s));
   for (const f of g.formen) {
-    f.name = `${g.name} ${seiteText(f.seite)}`;
+    f.name = `${g.nr} ${seiteText(f.seite)}`;   // nur Nummer, kein Name (der Name steht nur hier im Code)
     f.g = f.arten(f.rechne(f.plan(f.felder.map(x => x.wert))));
   }
 }
@@ -2144,10 +2144,10 @@ function zeigeForm(form) {
 
 for (const g of FORM_GRUPPEN) {
   // Überschrift und Kacheln zusammen: breit steht jede Gruppe in einer eigenen Spalte
-  auswahl.append(h("div", { class: "stapel" }, h("h2", { class: "abschnitt" }, g.name), h("div", { class: "kacheln" }, ...g.formen.map(f =>
+  auswahl.append(h("div", { class: "stapel" }, h("h2", { class: "abschnitt" }, String(g.nr)), h("div", { class: "kacheln" }, ...g.formen.map(f =>
     h("button", { class: "kachel", type: "button", "aria-label": f.name, onclick: () => zeigeForm(f) },
       kachelBild(g.bild, f.seite < 0),
-      h("span", null, f.seite < 0 ? `← links · ${f.g}` : `rechts · ${f.g} →`))))));
+      h("span", null, f.seite < 0 ? `← ${g.nr} links · ${f.g}` : `${g.nr} rechts · ${f.g} →`))))));
 }
 
 // ---------- Tabs ----------

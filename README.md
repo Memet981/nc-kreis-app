@@ -31,20 +31,20 @@ Neue Versionen lädt die App im Hintergrund – sie sind beim nächsten Öffnen 
    X/Z/I/K in den Sätzen ersetzt, auch das Z des Anfahrsatzes. „Rückgängig“ ist möglich.
 
 ## Tab „Konturformen“
-Die App öffnet mit diesem Tab. Zuerst die Form antippen. Jede Form gibt es zweimal: **links** fährt in Z−, **rechts** fährt in Z+
+Die App öffnet mit diesem Tab. Die Formen sind nur nummeriert (1–9). Zuerst die Form antippen. Jede Form gibt es zweimal: **links** fährt in Z−, **rechts** fährt in Z+
 (G02/G03 steht auf der Kachel). Die Vorgaben kommen aus echten Studer-Programmen:
 
-| Form | Kontur | Vorgabe aus |
-|---|---|---|
-| Kante | Zylinder – Radius – Schräge – Radius – Planfläche | Beispiel 87.98, %6357 |
-| Hohlkehle | Fase – Schulter – Radius – Zylinder – Fase | %6251, %4214 |
-| Hohlkehle mit Flanke | Schulter – Radius – Zylinder – Kante – schräge Flanke (Winkel zur X-Achse), Tiefe im Ø ab Ø Zylinder, Auslauf in Z über die Breite | Skizze Ø60, R0.5, 0.2×45°, 15°, Tiefe 1 |
-| Einstich mit Flanke | Planfläche – Radius – Zylinder bis Z Ende – Kante (Länge in Z) – Flanke 15° bis Ø Ende | Axiallager 295316-3, N85–N120 |
-| Schräge Schulter | Schräge – Radius – Zylinder – Fase (90° = gerade Schulter) | %4016 |
-| Radius am Ende | Zylinder – Radius – Stirnseite | %4202 |
-| Flaschenhals | Schräge 1 – Radius 1 – Schräge 2 – Radius 2 – Zylinder – Fase | %6432 |
-| Ballig | großer Radius von Z Mitte, dann Radius an der Stirnseite (0 = keiner) | %6305 |
-| Stufe | zwei Absätze mit Fase und Radius, dann Zylinder – Fase | %5636 |
+| Nr | Form (nur im Code) | Kontur | Vorgabe aus |
+|---|---|---|---|
+| 1 | Kante | Zylinder – Radius – Schräge – Radius – Planfläche | Beispiel 87.98, %6357 |
+| 2 | Hohlkehle | Fase – Schulter – Radius – Zylinder – Fase | %6251, %4214 |
+| 3 | Hohlkehle mit Flanke | Schulter – Radius – Zylinder – Kante – schräge Flanke (Winkel zur X-Achse), Tiefe im Ø ab Ø Zylinder, Auslauf in Z über die Breite | Skizze Ø60, R0.5, 0.2×45°, 15°, Tiefe 1 |
+| 4 | Einstich mit Flanke | Planfläche – Radius – Zylinder bis Z Ende – Kante (Länge in Z) – Flanke 15° bis Ø Ende | Axiallager 295316-3, N85–N120 |
+| 5 | Schräge Schulter | Schräge – Radius – Zylinder – Fase (90° = gerade Schulter) | %4016 |
+| 6 | Radius am Ende | Zylinder – Radius – Stirnseite | %4202 |
+| 7 | Flaschenhals | Schräge 1 – Radius 1 – Schräge 2 – Radius 2 – Zylinder – Fase | %6432 |
+| 8 | Ballig | großer Radius von Z Mitte, dann Radius an der Stirnseite (0 = keiner) | %6305 |
+| 9 | Stufe | zwei Absätze mit Fase und Radius, dann Zylinder – Fase | %5636 |
 
 Dann die Werte aus der Zeichnung eingeben. Beim Antippen eines Feldes zeigt die Grafik, welches
 Maß gemeint ist. Ergebnis als fertige NC-Sätze mit Kreisprüfung.
