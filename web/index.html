@@ -962,13 +962,13 @@ const Kontur = {
    * Fase – Schulter (Planfläche) – Hohlkehle – kurzer Zylinder (Breite) – Kante – schräge Flanke bis Ø Ende.
    * Breite: Planfläche bis zum Ende der Flanke (Kante und Flanke liegen darin). Flanke: Winkel zur X-Achse (0 = gerade
    * Planfläche), sie läuft in Fahrrichtung nach unten weg. Kante: Länge in Z am Zylinder, Fasenwinkel
-   * zur Z-Achse, endet auf der Flanke. Tiefe Flanke: im Durchmesser von Ø Zylinder bis zum Ende der Flanke.
+   * zur Z-Achse, endet auf der Flanke. Auslauf: Flanke läuft um diesen Wert in Z über die Breite hinaus (Ausfunken). Tiefe Flanke: im Durchmesser von Ø Zylinder bis zum Ende der Flanke.
    */
-  hohlkehleFlanke({ dS, zP, R, dZ, b, fK, wF, tF: tiefe, fS, fw }, s) {
+  hohlkehleFlanke({ dS, zP, R, dZ, b, fK, wF, tF: tiefe, a: auslauf, fS, fw }, s) {
     pruefe(dZ > 0 && dS > dZ, "Ø Schulter muss größer als Ø Zylinder sein.");
     pruefe(tiefe > 0 && tiefe < dZ, "Tiefe Flanke muss größer als 0 und kleiner als Ø Zylinder sein.");
     pruefe(b > 0, "Breite muss größer als 0 sein.");
-    pruefeNichtNegativ([R, fK, fS]);
+    pruefeNichtNegativ([R, fK, fS, auslauf]);
     pruefe(wF >= 0 && wF < 90, "Winkel Flanke muss zwischen 0 und 90° liegen (0 = gerade).");
     const tw = fasenTangens(fw, fS, fK);
     const tF = Math.tan(zuRad(wF));
@@ -990,7 +990,11 @@ const Kontur = {
       const e = k.dazu(new P(zK - s * fK + s * u, rZ - u * tw));
       kante = [a, e];
     } else k.dazu(kanteSpitz);
-    const ende = k.dazu(new P(zK + s * (rZ - rE) * tF, rE));
+    const ende = new P(zP + s * b, rE);   // Ende der Breite, auf der Flanke
+    // Auslauf: Die Flanke läuft um diesen Wert in Z über die Breite hinaus (bei 0° gerade nach unten).
+    const ausZ = tF > 0 ? auslauf : 0, ausR = tF > 0 ? auslauf / tF : auslauf;
+    const ausEnde = k.dazu(new P(ende.z + s * ausZ, ende.r - ausR));
+    pruefe(ausEnde.r > 0, "Auslauf läuft unter die Drehmitte.");
     const flankeOben = kante ? kante[1] : kanteSpitz;
     return { ...k, marken: {
       dS: { punkt: schulter.oben },
@@ -999,7 +1003,8 @@ const Kontur = {
       dZ: { linien: [[ecke, kante ? kante[0] : kanteSpitz]] },
       b: { linien: [[ecke, new P(zP + s * b, rZ)], [new P(zP + s * b, rZ), ende]] },
       fK: kante ? { linien: [kante] } : { punkt: kanteSpitz },
-      wF: { linien: [[flankeOben, ende]] },
+      wF: { linien: [[flankeOben, ausEnde]] },
+      a: { linien: [[ende, ausEnde]] },
       tF: { linien: [[new P(zK, rZ), new P(zK, rE)]] },
       fS: schulter.fase ? { linien: [schulter.fase] } : { punkt: schulter.oben },
       fw: { linien: [schulter.fase, kante].filter(Boolean) },
@@ -1719,6 +1724,7 @@ const FORM_GRUPPEN = [
     ["fK", "Kante, Länge in Z (0 = keine)", 0.2, 0.2],
     ["wF", "Winkel Flanke zur X-Achse in ° (0 = gerade)", 15, 15],
     ["tF", "Tiefe Flanke ab Ø Zylinder (im Ø)", 1, 1],
+    ["a", "Auslauf Flanke über die Breite, in Z (Ausfunken)", 0.2, 0.2],
     ["fS", "Fase Schulter, Länge in Z (0 = keine)", 0, 0],
     ["fw", "Fasenwinkel zur Z-Achse in °", 45, 45],
   ], bild: ["M6,14 H40 V42 Q40,50 48,50 H92 L96,54 L104,86", "M40,42 Q40,50 48,50"] },
