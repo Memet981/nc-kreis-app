@@ -299,3 +299,15 @@ test("Hohlkehle mit Flanke links und rechts (Skizze Ø60, Breite 5, R0.5, Kante 
   assert.throws(() => kontur("hohlkehleFlanke", { ...w, zP: 0, tF: 0 }, -1), /Tiefe Flanke/);
   assert.throws(() => kontur("hohlkehleFlanke", { ...w, zP: 0, b: 0.1 }, -1), /Breite ist zu klein/);
 });
+
+test("Einstich mit Flanke ergibt Axiallager 295316-3 (N85–N120)", () => {
+  const w = { dS: 60.775, R: 0.4, dZ: 59.975, fK: 0.4, fw: 45, wF: 15, dE: 55.536 };
+  const rechts = kontur("einstichFlanke", { ...w, zP: -5.025, zE: -0.508 }, 1);
+  assert.equal(Kontur.ncBlock(rechts), satzListe(
+    "G01 X60.775 Z-5.025", "G03 X59.975 Z-4.625 I0 K0.4", "G01 X59.975 Z-0.508", "G01 X59.175 Z-0.108", "G01 X55.536 Z0.38"));
+  const links = kontur("einstichFlanke", { ...w, zP: 5.025, zE: 0.508 }, -1);
+  assert.equal(Kontur.ncBlock(links), satzListe(
+    "G01 X60.775 Z5.025", "G02 X59.975 Z4.625 I0 K-0.4", "G01 X59.975 Z0.508", "G01 X59.175 Z0.108", "G01 X55.536 Z-0.38"));
+  assert.ok(Kontur.radiusAbweichungGerundet(rechts).every(d => d <= 0.001));
+  assert.throws(() => kontur("einstichFlanke", { ...w, zP: -5.025, zE: -0.508, dE: 59.5 }, 1), /Ø Ende Flanke/);
+});
