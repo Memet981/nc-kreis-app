@@ -286,15 +286,16 @@ test("Hohlkehle mit Flanke links und rechts (Skizze Ø60, Breite 5, R0.5, Kante 
   const links = kontur("hohlkehleFlanke", { ...w, zP: 0 }, -1);
   const rechts = kontur("hohlkehleFlanke", { ...w, zP: -5 }, 1);
   assert.equal(Kontur.ncBlock(links), satzListe(
-    "G01 X66 Z0", "G01 X61 Z0", "G02 X60 Z-0.5 I0 K-0.5", "G01 X60 Z-4.8", "G01 X59.454 Z-5.073", "G01 X59 Z-5.134"));
+    "G01 X66 Z0", "G01 X61 Z0", "G02 X60 Z-0.5 I0 K-0.5", "G01 X60 Z-4.666", "G01 X59.454 Z-4.939", "G01 X59 Z-5"));
   assert.equal(Kontur.ncBlock(rechts), satzListe(
-    "G01 X66 Z-5", "G01 X61 Z-5", "G03 X60 Z-4.5 I0 K0.5", "G01 X60 Z-0.2", "G01 X59.454 Z0.073", "G01 X59 Z0.134"));
+    "G01 X66 Z-5", "G01 X61 Z-5", "G03 X60 Z-4.5 I0 K0.5", "G01 X60 Z-0.334", "G01 X59.454 Z-0.061", "G01 X59 Z0"));
   assert.ok(Kontur.radiusAbweichungGerundet(links).every(d => d <= 0.001));
-  // Kante endet genau auf der Flanke: Flanke 15° zur X-Achse durch die scharfe Ecke Z-5 / Ø60
+  // Kante endet genau auf der Flanke: Flanke 15° zur X-Achse, scharfe Ecke bei Z−(5 − 0.5·tan15°) / Ø60
   const kanteEnde = links.saetze[3].ende;
-  nah(-5 - (30 - kanteEnde.r) * Math.tan(15 * Math.PI / 180), kanteEnde.z, 1e-9);
+  nah(-5 + 0.5 * Math.tan(15 * Math.PI / 180) - (30 - kanteEnde.r) * Math.tan(15 * Math.PI / 180), kanteEnde.z, 1e-9);
   // Ohne Kante und 0° = gerade Planfläche
   const gerade = kontur("hohlkehleFlanke", { ...w, zP: 0, fK: 0, wF: 0 }, -1);
   assert.equal(Kontur.ncBlock(gerade).split("\n").slice(-2).join("|"), "G01 X60 Z-5|G01 X59 Z-5");
   assert.throws(() => kontur("hohlkehleFlanke", { ...w, zP: 0, tF: 0 }, -1), /Tiefe Flanke/);
+  assert.throws(() => kontur("hohlkehleFlanke", { ...w, zP: 0, b: 0.1 }, -1), /Breite ist zu klein/);
 });

@@ -960,7 +960,7 @@ const Kontur = {
 
   /**
    * Fase – Schulter (Planfläche) – Hohlkehle – kurzer Zylinder (Breite) – Kante – schräge Flanke bis Ø Ende.
-   * Breite: Planfläche bis zur scharfen Ecke Zylinder/Flanke. Flanke: Winkel zur X-Achse (0 = gerade
+   * Breite: Planfläche bis zum Ende der Flanke (Kante und Flanke liegen darin). Flanke: Winkel zur X-Achse (0 = gerade
    * Planfläche), sie läuft in Fahrrichtung nach unten weg. Kante: Länge in Z am Zylinder, Fasenwinkel
    * zur Z-Achse, endet auf der Flanke. Tiefe Flanke: im Durchmesser von Ø Zylinder bis zum Ende der Flanke.
    */
@@ -974,7 +974,9 @@ const Kontur = {
     const tF = Math.tan(zuRad(wF));
     const rS = dS / 2, rZ = dZ / 2, rE = rZ - tiefe / 2;   // Tiefe im Durchmesser ab Ø Zylinder
     pruefe(fS * tw < rS - rZ, "Fase Schulter ist höher als die Schulter.");
-    const zK = zP + s * b;   // scharfe Ecke Zylinder/Flanke
+    const flankeZ = (rZ - rE) * tF;   // Länge der Flanke in Z
+    pruefe(b > flankeZ, `Breite ist zu klein: Die Flanke allein ist in Z ${Fmt.zahl(flankeZ)} lang.`);
+    const zK = zP + s * (b - flankeZ);   // scharfe Ecke Zylinder/Flanke; Breite geht bis zum Ende der Flanke
     const kanteSpitz = new P(zK, rZ);
     const k = konturBauer();
     const schulter = schulterAnfang(k, s, rS, zP, fS, tw);
@@ -995,7 +997,7 @@ const Kontur = {
       zP: { linien: [[schulter.unten, ecke]] },
       R: { bogen: ecke },
       dZ: { linien: [[ecke, kante ? kante[0] : kanteSpitz]] },
-      b: { linien: [[ecke, kanteSpitz]] },
+      b: { linien: [[ecke, new P(zP + s * b, rZ)], [new P(zP + s * b, rZ), ende]] },
       fK: kante ? { linien: [kante] } : { punkt: kanteSpitz },
       wF: { linien: [[flankeOben, ende]] },
       tF: { linien: [[new P(zK, rZ), new P(zK, rE)]] },
@@ -1713,7 +1715,7 @@ const FORM_GRUPPEN = [
     ["zP", "Z Planfläche", -5, 0],
     ["R", "Radius Hohlkehle (0 = scharfe Ecke)", 0.5, 0.5],
     ["dZ", "Ø Zylinder", 60, 60],
-    ["b", "Breite (Planfläche bis scharfe Kante)", 5, 5],
+    ["b", "Breite (Planfläche bis Ende Flanke)", 5, 5],
     ["fK", "Kante, Länge in Z (0 = keine)", 0.2, 0.2],
     ["wF", "Winkel Flanke zur X-Achse in ° (0 = gerade)", 15, 15],
     ["tF", "Tiefe Flanke ab Ø Zylinder (im Ø)", 1, 1],
